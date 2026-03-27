@@ -5,10 +5,11 @@ import { Search, Bell, Settings, CheckCircle2, Menu } from 'lucide-react';
 
 interface TopBarProps {
   apiKey?: string;
+  supabaseStatus?: 'connected' | 'disconnected' | 'not-configured';
   onMenuClick?: () => void;
 }
 
-export default function TopBar({ apiKey, onMenuClick }: TopBarProps) {
+export default function TopBar({ apiKey, supabaseStatus, onMenuClick }: TopBarProps) {
   return (
     <header className="fixed top-0 right-0 w-full lg:w-[calc(100%-16rem)] h-16 z-40 bg-white/90 backdrop-blur-xl flex items-center justify-between px-4 md:px-8 border-b border-slate-100 transition-all duration-300">
       <div className="flex items-center gap-4 md:gap-8">
@@ -34,6 +35,25 @@ export default function TopBar({ apiKey, onMenuClick }: TopBarProps) {
       </div>
 
       <div className="flex items-center gap-4">
+        {supabaseStatus === 'connected' && (
+          <div className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 text-blue-600 rounded-full text-[10px] font-bold uppercase tracking-widest">
+            <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></span>
+            DB Conectado
+          </div>
+        )}
+        {supabaseStatus === 'disconnected' && (
+          <div className="flex items-center gap-2 px-3 py-1.5 bg-red-50 text-red-600 rounded-full text-[10px] font-bold uppercase tracking-widest">
+            <span className="w-2 h-2 rounded-full bg-red-500"></span>
+            DB Erro
+          </div>
+        )}
+        {supabaseStatus === 'not-configured' && (
+          <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-100 text-slate-500 rounded-full text-[10px] font-bold uppercase tracking-widest">
+            <span className="w-2 h-2 rounded-full bg-slate-400"></span>
+            DB Offline
+          </div>
+        )}
+        
         {apiKey ? (
           <div className="flex items-center gap-2 px-3 py-1.5 bg-green-50 text-green-600 rounded-full text-xs font-semibold">
             <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>

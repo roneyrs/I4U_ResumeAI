@@ -19,6 +19,7 @@ export default function Home() {
   const [results, setResults] = React.useState<Candidate[]>([]);
   const [viewingCandidate, setViewingCandidate] = React.useState<Candidate | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = React.useState(false);
+  const [supabaseStatus, setSupabaseStatus] = React.useState<'connected' | 'disconnected' | 'not-configured'>('not-configured');
 
   const tableContainerRef = React.useRef<HTMLDivElement>(null);
   const topScrollRef = React.useRef<HTMLDivElement>(null);
@@ -73,13 +74,14 @@ export default function Home() {
         return;
       }
 
+      console.log('Attempting to fetch candidates from Supabase...');
       const { data, error } = await supabase
         .from('candidates')
         .select('*')
         .order('created_at', { ascending: false });
 
       if (error) {
-        console.error('Error fetching candidates from Supabase:', error);
+        console.error('Supabase fetch error:', error);
         // Fallback to localStorage if Supabase fails
         const savedResults = localStorage.getItem('i4u_results');
         if (savedResults) {
@@ -90,6 +92,7 @@ export default function Home() {
           }
         }
       } else if (data) {
+        console.log('Successfully fetched candidates:', data.length);
         // Map database fields to Candidate interface if necessary
         const mappedData = data.map(c => ({
           ...c,
@@ -100,6 +103,28 @@ export default function Home() {
     };
 
     fetchCandidates();
+
+    // Test connection
+    const testConnection = async () => {
+      if (!supabase) {
+        setSupabaseStatus('not-configured');
+        return;
+      }
+      try {
+        const { error } = await supabase.from('candidates').select('id').limit(1);
+        if (error) {
+          console.error('Supabase connection test failed:', error.message);
+          setSupabaseStatus('disconnected');
+        } else {
+          console.log('Supabase connection test successful');
+          setSupabaseStatus('connected');
+        }
+      } catch (err) {
+        console.error('Supabase connection test exception:', err);
+        setSupabaseStatus('disconnected');
+      }
+    };
+    testConnection();
   }, []);
 
   // Save data to localStorage whenever it changes
@@ -139,13 +164,25 @@ export default function Home() {
       return;
     }
 
+    console.log('Inserting candidates into Supabase:', resultsWithJob.length);
     const { data, error } = await supabase
       .from('candidates')
       .insert(resultsWithJob)
       .select();
 
+    // Also save the job to the jobs table
+    await supabase
+      .from('jobs')
+      .insert({ title: prompt, description: prompt })
+      .select()
+      .then(({ error: jobError }) => {
+        if (jobError) console.error('Error saving job to Supabase:', jobError);
+        else console.log('Successfully saved job to Supabase');
+      });
+
     if (error) {
       console.error('Error saving candidates to Supabase:', error);
+      console.error('Error details:', error.details, error.hint, error.message);
       // Fallback to local state if Supabase fails
       const localResults = resultsWithJob.map((r, i) => ({
         ...r,
@@ -154,6 +191,7 @@ export default function Home() {
       }));
       setResults(prev => [...localResults, ...prev]);
     } else if (data) {
+      console.log('Successfully saved candidates to Supabase:', data.length);
       const mappedData = data.map(c => ({
         ...c,
         jobDescription: c.job_description
@@ -213,7 +251,11 @@ export default function Home() {
       />
       
       <main className="flex-1 lg:ml-64 min-h-screen flex flex-col relative w-full overflow-x-hidden">
-        <TopBar apiKey={apiKey} onMenuClick={() => setIsSidebarOpen(true)} />
+        <TopBar 
+          apiKey={apiKey} 
+          supabaseStatus={supabaseStatus}
+          onMenuClick={() => setIsSidebarOpen(true)} 
+        />
         
         {/* Global Top Scrollbar */}
         <div 
