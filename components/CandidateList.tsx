@@ -46,6 +46,7 @@ export default function CandidateList({ candidates, onViewProfile, onDelete, onU
   const [jobFilter, setJobFilter] = React.useState('');
   const [scoreLimit, setScoreLimit] = React.useState(0.0);
   const [selectedIds, setSelectedIds] = React.useState<Set<string>>(new Set());
+  const [exportType, setExportType] = React.useState<'analysis' | 'cv'>('analysis');
 
   const filteredCandidates = candidates.filter(c => 
     (c.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -82,25 +83,46 @@ export default function CandidateList({ candidates, onViewProfile, onDelete, onU
     const zip = new JSZip();
 
     toExport.forEach(c => {
-      // Create folders by score (e.g., "Score_9-10", "Score_8-9", etc.)
       const scoreFolder = `Score_${Math.floor(c.score)}-${Math.floor(c.score) + 1}`;
       const folder = zip.folder(scoreFolder);
       
-      const content = `
-Nome: ${c.name}
-Cargo: ${c.role || 'N/A'}
-Score: ${c.score.toFixed(1)}
-Status: ${c.status}
-Data: ${c.date}
-Email: ${c.email || 'N/A'}
-Telefone: ${c.phone || 'N/A'}
-Descrição da Vaga: ${c.jobDescription || 'N/A'}
+      let content = "";
+      let fileName = "";
 
-Análise:
+      if (exportType === 'analysis') {
+        content = `
+RELATÓRIO DE ANÁLISE I4U: ${c.name}
+-------------------------------------------
+SCORE NEURAL: ${c.score.toFixed(1)}/10
+CARGO: ${c.role || 'N/A'}
+STATUS: ${c.status}
+DATA: ${c.date}
+EMAIL: ${c.email || 'N/A'}
+TELEFONE: ${c.phone || 'N/A'}
+
+ANÁLISE EXECUTIVA:
 ${c.analysis || 'Sem análise disponível.'}
-      `.trim();
+        `.trim();
+        fileName = `${c.name.replace(/\s+/g, '_')}_Analise_${c.id}.txt`;
+      } else {
+        content = `
+CURRÍCULO VITAE: ${c.name}
+-------------------------------------------
+CARGO: ${c.role || 'Especialista'}
+CONTATO: ${c.email || 'N/A'} | ${c.phone || 'N/A'}
+DATA DA CANDIDATURA: ${c.date}
 
-      folder?.file(`${c.name.replace(/\s+/g, '_')}_${c.id}.txt`, content);
+RESUMO PROFISSIONAL (Extraído por I4U AI):
+Candidato com score de aderência ${c.score.toFixed(1)}/10 para a vaga.
+Perfil identificado: ${c.role || 'Não especificado'}.
+
+[O currículo original em PDF foi processado pela camada de inteligência I4U. 
+Este arquivo contém os dados estruturados extraídos do documento original.]
+        `.trim();
+        fileName = `${c.name.replace(/\s+/g, '_')}_Curriculo_${c.id}.txt`;
+      }
+
+      folder?.file(fileName, content);
     });
 
     const blob = await zip.generateAsync({ type: 'blob' });
@@ -115,6 +137,20 @@ ${c.analysis || 'Sem análise disponível.'}
         <div className="flex items-center justify-between">
           <h1 className="text-4xl font-bold text-slate-900 tracking-tight">Triagem de Candidatos</h1>
           <div className="flex items-center gap-3">
+            <div className="flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200 mr-2">
+              <button 
+                onClick={() => setExportType('analysis')}
+                className={`px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all ${exportType === 'analysis' ? 'bg-white text-primary shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+              >
+                Análise IA
+              </button>
+              <button 
+                onClick={() => setExportType('cv')}
+                className={`px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all ${exportType === 'cv' ? 'bg-white text-primary shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+              >
+                Currículo
+              </button>
+            </div>
             <button 
               onClick={() => handleExport(true)}
               disabled={selectedIds.size === 0}

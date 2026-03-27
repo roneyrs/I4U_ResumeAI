@@ -10,6 +10,7 @@ import CandidateList, { Candidate } from '@/components/CandidateList';
 import CandidateProfile from '@/components/CandidateProfile';
 import UserProfile from '@/components/UserProfile';
 import { motion, AnimatePresence } from 'motion/react';
+import { supabase } from '@/lib/supabase';
 
 export default function Home() {
   const [activeTab, setActiveTab] = React.useState('dashboard');
@@ -50,21 +51,55 @@ export default function Home() {
     };
   }, [activeTab]); // Re-sync when tab changes
 
-  // Load data from localStorage on mount
+  // Load data from Supabase on mount
   React.useEffect(() => {
     const savedApiKey = localStorage.getItem('i4u_api_key');
     const savedPrompt = localStorage.getItem('i4u_last_prompt');
-    const savedResults = localStorage.getItem('i4u_results');
 
     if (savedApiKey) setApiKey(savedApiKey);
     if (savedPrompt) setPrompt(savedPrompt);
-    if (savedResults) {
-      try {
-        setResults(JSON.parse(savedResults));
-      } catch (e) {
-        console.error('Error parsing saved results', e);
+
+    const fetchCandidates = async () => {
+      if (!supabase) {
+        console.warn('Supabase not configured. Loading from localStorage.');
+        const savedResults = localStorage.getItem('i4u_results');
+        if (savedResults) {
+          try {
+            setResults(JSON.parse(savedResults));
+          } catch (e) {
+            console.error('Error parsing saved results', e);
+          }
+        }
+        return;
       }
-    }
+
+      const { data, error } = await supabase
+        .from('candidates')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Error fetching candidates from Supabase:', error);
+        // Fallback to localStorage if Supabase fails
+        const savedResults = localStorage.getItem('i4u_results');
+        if (savedResults) {
+          try {
+            setResults(JSON.parse(savedResults));
+          } catch (e) {
+            console.error('Error parsing saved results', e);
+          }
+        }
+      } else if (data) {
+        // Map database fields to Candidate interface if necessary
+        const mappedData = data.map(c => ({
+          ...c,
+          jobDescription: c.job_description // Map snake_case to camelCase
+        }));
+        setResults(mappedData);
+      }
+    };
+
+    fetchCandidates();
   }, []);
 
   // Save data to localStorage whenever it changes
@@ -80,22 +115,89 @@ export default function Home() {
     if (results.length > 0) localStorage.setItem('i4u_results', JSON.stringify(results));
   }, [results]);
 
-  const handleBatchComplete = (newResults: any[]) => {
+  const handleBatchComplete = async (newResults: any[]) => {
     const resultsWithJob = newResults.map(r => ({
-      ...r,
-      jobDescription: prompt, // Use the current prompt as the job description
-      status: 'Em Análise' // Initial status
+      name: r.name,
+      score: r.score,
+      status: 'Em Análise',
+      date: r.date,
+      analysis: r.analysis,
+      email: r.email,
+      phone: r.phone,
+      role: r.role,
+      job_description: prompt
     }));
-    setResults(prev => [...resultsWithJob, ...prev]);
+
+    if (!supabase) {
+      console.warn('Supabase not configured. Saving to local state only.');
+      const localResults = resultsWithJob.map((r, i) => ({
+        ...r,
+        id: `temp-${Date.now()}-${i}`,
+        jobDescription: r.job_description
+      }));
+      setResults(prev => [...localResults, ...prev]);
+      return;
+    }
+
+    const { data, error } = await supabase
+      .from('candidates')
+      .insert(resultsWithJob)
+      .select();
+
+    if (error) {
+      console.error('Error saving candidates to Supabase:', error);
+      // Fallback to local state if Supabase fails
+      const localResults = resultsWithJob.map((r, i) => ({
+        ...r,
+        id: `temp-${Date.now()}-${i}`,
+        jobDescription: r.job_description
+      }));
+      setResults(prev => [...localResults, ...prev]);
+    } else if (data) {
+      const mappedData = data.map(c => ({
+        ...c,
+        jobDescription: c.job_description
+      }));
+      setResults(prev => [...mappedData, ...prev]);
+    }
   };
 
-  const handleDeleteCandidate = (id: string) => {
-    setResults(prev => prev.filter(c => c.id !== id));
-    if (viewingCandidate?.id === id) setViewingCandidate(null);
+  const handleDeleteCandidate = async (id: string) => {
+    if (!supabase) {
+      setResults(prev => prev.filter(c => c.id !== id));
+      if (viewingCandidate?.id === id) setViewingCandidate(null);
+      return;
+    }
+
+    const { error } = await supabase
+      .from('candidates')
+      .delete()
+      .eq('id', id);
+
+    if (error) {
+      console.error('Error deleting candidate from Supabase:', error);
+    } else {
+      setResults(prev => prev.filter(c => c.id !== id));
+      if (viewingCandidate?.id === id) setViewingCandidate(null);
+    }
   };
 
-  const handleUpdateStatus = (id: string, newStatus: string) => {
-    setResults(prev => prev.map(c => c.id === id ? { ...c, status: newStatus } : c));
+  const handleUpdateStatus = async (id: string, newStatus: string) => {
+    if (!supabase) {
+      setResults(prev => prev.map(c => c.id === id ? { ...c, status: newStatus } : c));
+      return;
+    }
+
+    const { error } = await supabase
+      .from('candidates')
+      .update({ status: newStatus })
+      .eq('id', id);
+
+    if (error) {
+      console.error('Error updating status in Supabase:', error);
+    } else {
+      setResults(prev => prev.map(c => c.id === id ? { ...c, status: newStatus } : c));
+    }
   };
 
   return (

@@ -38,7 +38,7 @@ export default function Dashboard({ results = [], onNavigate }: DashboardProps) 
       <section className="flex flex-col gap-1">
         <span className="text-[10px] font-bold text-primary uppercase tracking-[0.2em]">Visão Geral do Sistema</span>
         <h2 className="text-4xl font-bold text-slate-900 tracking-tight leading-tight">
-          O Arquiteto <span className="text-primary">Cognitivo</span>
+          RH <span className="text-primary">Inteligente</span>
         </h2>
         <p className="text-slate-500 font-medium mt-2">Desempenho de triagem inteligente e status da infraestrutura.</p>
       </section>
