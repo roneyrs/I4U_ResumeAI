@@ -22,9 +22,11 @@ import { Candidate } from './CandidateList';
 interface CandidateProfileProps {
   candidate: Candidate;
   onClose: () => void;
+  onDelete?: (id: string) => void;
+  onUpdateStatus?: (id: string, status: string) => void;
 }
 
-export default function CandidateProfile({ candidate, onClose }: CandidateProfileProps) {
+export default function CandidateProfile({ candidate, onClose, onDelete, onUpdateStatus }: CandidateProfileProps) {
   // Mock scores for the evaluation core
   const evaluationScores = [
     { label: 'Proficiência Técnica', score: 10.0 },
@@ -116,10 +118,37 @@ export default function CandidateProfile({ candidate, onClose }: CandidateProfil
                 </div>
               </div>
 
-              <button className="w-full md:w-auto px-6 sm:px-8 py-4 sm:py-5 bg-primary text-white rounded-2xl sm:rounded-3xl font-bold shadow-xl shadow-primary/20 hover:brightness-110 active:scale-95 transition-all flex items-center justify-center gap-3">
-                <UserCheck className="w-5 h-5" />
-                Contratar
-              </button>
+              <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
+                <select 
+                  value={candidate.status}
+                  onChange={(e) => onUpdateStatus?.(candidate.id, e.target.value)}
+                  className={`px-6 py-4 rounded-2xl sm:rounded-3xl font-bold border-2 transition-all cursor-pointer appearance-none text-center ${
+                    candidate.status === 'Aprovado' 
+                      ? 'bg-green-50 border-green-200 text-green-600' 
+                      : 'bg-amber-50 border-amber-200 text-amber-600'
+                  }`}
+                >
+                  <option value="Em Análise">Em Análise</option>
+                  <option value="Aprovado">Aprovado</option>
+                  <option value="Reprovado">Reprovado</option>
+                </select>
+
+                <button 
+                  onClick={() => {
+                    if (confirm('Tem certeza que deseja excluir este candidato?')) {
+                      onDelete?.(candidate.id);
+                    }
+                  }}
+                  className="px-6 py-4 bg-red-50 text-red-600 border-2 border-red-100 rounded-2xl sm:rounded-3xl font-bold hover:bg-red-100 transition-all flex items-center justify-center gap-2"
+                >
+                  Excluir
+                </button>
+
+                <button className="px-6 sm:px-8 py-4 sm:py-5 bg-primary text-white rounded-2xl sm:rounded-3xl font-bold shadow-xl shadow-primary/20 hover:brightness-110 active:scale-95 transition-all flex items-center justify-center gap-3">
+                  <UserCheck className="w-5 h-5" />
+                  Contratar
+                </button>
+              </div>
             </div>
 
             {/* Executive Summary */}

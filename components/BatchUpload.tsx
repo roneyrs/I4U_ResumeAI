@@ -125,7 +125,7 @@ export default function BatchUpload({ apiKey, prompt, setPrompt, onComplete }: B
           name: currentFile.name.replace('.pdf', ''),
           score: parseFloat(data.pontuacao) || 0,
           analysis: data.analise,
-          status: 'Aprovado',
+          status: 'Em Análise',
           date: new Date().toLocaleDateString('pt-BR'),
           email: `${currentFile.name.toLowerCase().replace(/\s+/g, '.').replace('.pdf', '')}@cloud-ops.ai`,
           phone: `+55 (11) 9${Math.floor(1000 + Math.random() * 9000)}-${Math.floor(1000 + Math.random() * 9000)}`,

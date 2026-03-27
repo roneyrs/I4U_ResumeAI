@@ -18,6 +18,9 @@ import {
 } from 'lucide-react';
 import { motion } from 'motion/react';
 
+import JSZip from 'jszip';
+import { saveAs } from 'file-saver';
+
 export interface Candidate {
   id: string;
   name: string;
@@ -28,23 +31,81 @@ export interface Candidate {
   email?: string;
   phone?: string;
   role?: string;
+  jobDescription?: string;
 }
 
 interface CandidateListProps {
   candidates: Candidate[];
   onViewProfile?: (candidate: Candidate) => void;
+  onDelete?: (id: string) => void;
+  onUpdateStatus?: (id: string, status: string) => void;
 }
 
-export default function CandidateList({ candidates, onViewProfile }: CandidateListProps) {
+export default function CandidateList({ candidates, onViewProfile, onDelete, onUpdateStatus }: CandidateListProps) {
   const [searchTerm, setSearchTerm] = React.useState('');
-  const [scoreLimit, setScoreLimit] = React.useState(9.0);
-  const [selectedCandidate, setSelectedCandidate] = React.useState<Candidate | null>(null);
+  const [jobFilter, setJobFilter] = React.useState('');
+  const [scoreLimit, setScoreLimit] = React.useState(0.0);
+  const [selectedIds, setSelectedIds] = React.useState<Set<string>>(new Set());
 
   const filteredCandidates = candidates.filter(c => 
     (c.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     c.status.toLowerCase().includes(searchTerm.toLowerCase())) &&
+    (c.jobDescription?.toLowerCase().includes(jobFilter.toLowerCase()) || !jobFilter) &&
     c.score >= scoreLimit
   );
+
+  const toggleSelect = (id: string) => {
+    const newSelected = new Set(selectedIds);
+    if (newSelected.has(id)) {
+      newSelected.delete(id);
+    } else {
+      newSelected.add(id);
+    }
+    setSelectedIds(newSelected);
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedIds.size === filteredCandidates.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(filteredCandidates.map(c => c.id)));
+    }
+  };
+
+  const handleExport = async (onlySelected: boolean) => {
+    const toExport = onlySelected 
+      ? candidates.filter(c => selectedIds.has(c.id))
+      : filteredCandidates;
+
+    if (toExport.length === 0) return;
+
+    const zip = new JSZip();
+
+    toExport.forEach(c => {
+      // Create folders by score (e.g., "Score_9-10", "Score_8-9", etc.)
+      const scoreFolder = `Score_${Math.floor(c.score)}-${Math.floor(c.score) + 1}`;
+      const folder = zip.folder(scoreFolder);
+      
+      const content = `
+Nome: ${c.name}
+Cargo: ${c.role || 'N/A'}
+Score: ${c.score.toFixed(1)}
+Status: ${c.status}
+Data: ${c.date}
+Email: ${c.email || 'N/A'}
+Telefone: ${c.phone || 'N/A'}
+Descrição da Vaga: ${c.jobDescription || 'N/A'}
+
+Análise:
+${c.analysis || 'Sem análise disponível.'}
+      `.trim();
+
+      folder?.file(`${c.name.replace(/\s+/g, '_')}_${c.id}.txt`, content);
+    });
+
+    const blob = await zip.generateAsync({ type: 'blob' });
+    saveAs(blob, `export_candidatos_${new Date().toISOString().split('T')[0]}.zip`);
+  };
 
   return (
     <div className="space-y-8 pb-12">
@@ -54,24 +115,31 @@ export default function CandidateList({ candidates, onViewProfile }: CandidateLi
         <div className="flex items-center justify-between">
           <h1 className="text-4xl font-bold text-slate-900 tracking-tight">Triagem de Candidatos</h1>
           <div className="flex items-center gap-3">
-            <button className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-bold text-slate-600 shadow-sm hover:bg-slate-50 transition-all">
+            <button 
+              onClick={() => handleExport(true)}
+              disabled={selectedIds.size === 0}
+              className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-bold text-slate-600 shadow-sm hover:bg-slate-50 transition-all disabled:opacity-50"
+            >
               <Download className="w-4 h-4" />
-              Exportar Resultados
+              Exportar Selecionados ({selectedIds.size})
             </button>
-            <button className="flex items-center gap-2 px-6 py-2.5 bg-primary text-white rounded-xl text-sm font-bold shadow-lg shadow-primary/20 hover:brightness-110 active:scale-95 transition-all">
-              <Zap className="w-4 h-4 fill-current" />
-              Executar Scan Profundo
+            <button 
+              onClick={() => handleExport(false)}
+              className="flex items-center gap-2 px-6 py-2.5 bg-primary text-white rounded-xl text-sm font-bold shadow-lg shadow-primary/20 hover:brightness-110 active:scale-95 transition-all"
+            >
+              <Folder className="w-4 h-4 fill-current" />
+              Exportar Tudo (Filtro)
             </button>
           </div>
         </div>
         <p className="text-slate-500 text-sm mt-2">
-          Processando scores neurais em tempo real para <span className="font-bold text-primary">1.284 aplicantes</span>. Otimizado para Proficiência Técnica e Potencial de Liderança.
+          Processando scores neurais em tempo real para <span className="font-bold text-primary">{candidates.length} aplicantes</span>. Otimizado para Proficiência Técnica e Potencial de Liderança.
         </p>
       </div>
 
       {/* Filters Section */}
       <div className="grid grid-cols-12 gap-6">
-        <div className="col-span-12 lg:col-span-5 bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
+        <div className="col-span-12 lg:col-span-4 bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
           <div className="flex items-center justify-between mb-6">
             <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Limite de Score Neural</label>
             <span className="px-3 py-1 bg-primary/10 text-primary rounded-lg font-bold text-sm">{scoreLimit.toFixed(1)}+</span>
@@ -85,38 +153,33 @@ export default function CandidateList({ candidates, onViewProfile }: CandidateLi
             onChange={(e) => setScoreLimit(parseFloat(e.target.value))}
             className="w-full h-2 bg-slate-100 rounded-lg appearance-none cursor-pointer accent-primary"
           />
-          <div className="flex justify-between mt-3 text-[10px] font-bold text-slate-400">
-            <span>0.0 (Não qualificado)</span>
-            <span>10.0 (Ideal)</span>
+        </div>
+
+        <div className="col-span-12 lg:col-span-4 bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
+          <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-4">Buscar Candidato</label>
+          <div className="relative">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+            <input 
+              type="text" 
+              placeholder="Nome ou status..."
+              className="w-full pl-11 pr-4 py-3 bg-slate-50 border-none rounded-xl text-sm font-bold text-slate-700 focus:ring-2 focus:ring-primary/20"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
           </div>
         </div>
 
         <div className="col-span-12 lg:col-span-4 bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
-          <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-4">Ordenação Avançada</label>
+          <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-4">Descrição da Vaga</label>
           <div className="relative">
-            <select className="w-full bg-slate-50 border-none rounded-xl py-3 px-4 text-sm font-bold text-slate-700 focus:ring-2 focus:ring-primary/20 appearance-none">
-              <option>Maior Pontuação</option>
-              <option>Mais Recentes</option>
-              <option>Menor Pontuação</option>
-            </select>
-            <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none">
-              <Filter className="w-4 h-4 text-slate-400" />
-            </div>
-          </div>
-        </div>
-
-        <div className="col-span-12 lg:col-span-3 bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
-          <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-4">Pastas Ativas</label>
-          <div className="flex items-center gap-2">
-            <div className="flex -space-x-2">
-              <div className="w-8 h-8 rounded-full bg-amber-100 border-2 border-white flex items-center justify-center">
-                <Folder className="w-3 h-3 text-amber-600" />
-              </div>
-              <div className="w-8 h-8 rounded-full bg-slate-100 border-2 border-white flex items-center justify-center">
-                <Folder className="w-3 h-3 text-slate-600" />
-              </div>
-            </div>
-            <span className="text-xs font-bold text-slate-400 ml-2">+4</span>
+            <Filter className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+            <input 
+              type="text" 
+              placeholder="Filtrar por vaga..."
+              className="w-full pl-11 pr-4 py-3 bg-slate-50 border-none rounded-xl text-sm font-bold text-slate-700 focus:ring-2 focus:ring-primary/20"
+              value={jobFilter}
+              onChange={(e) => setJobFilter(e.target.value)}
+            />
           </div>
         </div>
       </div>
@@ -127,6 +190,14 @@ export default function CandidateList({ candidates, onViewProfile }: CandidateLi
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-slate-50/50">
+                <th className="px-8 py-5 text-left">
+                  <input 
+                    type="checkbox" 
+                    className="rounded border-slate-300 text-primary focus:ring-primary"
+                    checked={selectedIds.size === filteredCandidates.length && filteredCandidates.length > 0}
+                    onChange={toggleSelectAll}
+                  />
+                </th>
                 <th className="px-8 py-5 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Candidato</th>
                 <th className="px-8 py-5 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Identidade de Contato</th>
                 <th className="px-8 py-5 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Fase de Processamento</th>
@@ -137,13 +208,21 @@ export default function CandidateList({ candidates, onViewProfile }: CandidateLi
             <tbody className="divide-y divide-slate-50">
               {filteredCandidates.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-8 py-16 text-center text-slate-400 italic text-sm">
-                    {searchTerm ? 'Nenhum candidato encontrado para esta busca.' : 'Nenhum candidato atende aos critérios de score.'}
+                  <td colSpan={6} className="px-8 py-16 text-center text-slate-400 italic text-sm">
+                    {searchTerm || jobFilter ? 'Nenhum candidato encontrado para esta busca.' : 'Nenhum candidato atende aos critérios de score.'}
                   </td>
                 </tr>
               ) : (
                 filteredCandidates.map((c) => (
                   <tr key={c.id} className="hover:bg-slate-50/50 transition-all group">
+                    <td className="px-8 py-6">
+                      <input 
+                        type="checkbox" 
+                        className="rounded border-slate-300 text-primary focus:ring-primary"
+                        checked={selectedIds.has(c.id)}
+                        onChange={() => toggleSelect(c.id)}
+                      />
+                    </td>
                     <td className="px-8 py-6">
                       <div className="flex items-center gap-4">
                         <div className="w-12 h-12 bg-slate-100 rounded-xl overflow-hidden relative border border-slate-200">
@@ -167,9 +246,19 @@ export default function CandidateList({ candidates, onViewProfile }: CandidateLi
                       </div>
                     </td>
                     <td className="px-8 py-6">
-                      <span className="px-3 py-1 bg-green-50 text-green-600 rounded-lg text-[10px] font-bold uppercase tracking-wider">
-                        {c.status}
-                      </span>
+                      <select 
+                        value={c.status}
+                        onChange={(e) => onUpdateStatus?.(c.id, e.target.value)}
+                        className={`px-3 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider border-none focus:ring-0 cursor-pointer ${
+                          c.status === 'Aprovado' 
+                            ? 'bg-green-100 text-green-600' 
+                            : 'bg-amber-100 text-amber-600'
+                        }`}
+                      >
+                        <option value="Em Análise">Em Análise</option>
+                        <option value="Aprovado">Aprovado</option>
+                        <option value="Reprovado">Reprovado</option>
+                      </select>
                     </td>
                     <td className="px-8 py-6">
                       <div className="flex justify-center">
@@ -181,15 +270,17 @@ export default function CandidateList({ candidates, onViewProfile }: CandidateLi
                     <td className="px-8 py-6">
                       <div className="flex items-center justify-end gap-2">
                         <button 
-                          onClick={() => onViewProfile ? onViewProfile(c) : setSelectedCandidate(c)}
+                          onClick={() => onViewProfile?.(c)}
                           className="p-2 text-slate-400 hover:text-primary hover:bg-primary/5 rounded-lg transition-all"
+                          title="Ver Perfil"
                         >
                           <Eye className="w-4 h-4" />
                         </button>
-                        <button className="p-2 text-slate-400 hover:text-secondary hover:bg-secondary/5 rounded-lg transition-all">
-                          <UserPlus className="w-4 h-4" />
-                        </button>
-                        <button className="p-2 text-slate-400 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-all">
+                        <button 
+                          onClick={() => onDelete?.(c.id)}
+                          className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
+                          title="Excluir"
+                        >
                           <MoreVertical className="w-4 h-4" />
                         </button>
                       </div>
@@ -265,57 +356,6 @@ export default function CandidateList({ candidates, onViewProfile }: CandidateLi
         </div>
       </div>
 
-      {/* Modal de Detalhes (Fallback if onViewProfile not provided) */}
-      {selectedCandidate && !onViewProfile && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
-          <motion.div 
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[80vh] overflow-hidden flex flex-col"
-          >
-            <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center">
-                  <FileText className="w-5 h-5 text-primary" />
-                </div>
-                <div>
-                  <h3 className="font-bold text-lg leading-tight">{selectedCandidate.name}</h3>
-                  <p className="text-xs text-slate-500">Análise Completa da IA</p>
-                </div>
-              </div>
-              <button 
-                onClick={() => setSelectedCandidate(null)}
-                className="p-2 hover:bg-slate-200 rounded-full transition-all"
-              >
-                <Search className="w-5 h-5 rotate-45" />
-              </button>
-            </div>
-            <div className="p-8 overflow-y-auto flex-1 text-slate-700 leading-relaxed whitespace-pre-wrap">
-              <div className="mb-6 flex items-center gap-4 p-4 bg-slate-50 rounded-xl border border-slate-100">
-                <div>
-                  <p className="text-[10px] uppercase font-bold text-slate-400 tracking-widest mb-1">Score de Match</p>
-                  <p className="text-3xl font-bold text-primary">{selectedCandidate.score}/10</p>
-                </div>
-                <div className="h-10 w-px bg-slate-200"></div>
-                <div>
-                  <p className="text-[10px] uppercase font-bold text-slate-400 tracking-widest mb-1">Status</p>
-                  <p className="text-sm font-bold text-green-600">{selectedCandidate.status}</p>
-                </div>
-              </div>
-              <h4 className="font-bold text-slate-900 mb-2">Diagnóstico Detalhado</h4>
-              {selectedCandidate.analysis}
-            </div>
-            <div className="p-6 border-t border-slate-100 bg-slate-50/50 flex justify-end">
-              <button 
-                onClick={() => setSelectedCandidate(null)}
-                className="px-6 py-2 bg-secondary text-white rounded-lg font-bold shadow-md hover:bg-secondary/90 transition-all"
-              >
-                Fechar
-              </button>
-            </div>
-          </motion.div>
-        </div>
-      )}
     </div>
   );
 }

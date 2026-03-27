@@ -49,7 +49,21 @@ export default function Home() {
   }, [results]);
 
   const handleBatchComplete = (newResults: any[]) => {
-    setResults(prev => [...newResults, ...prev]);
+    const resultsWithJob = newResults.map(r => ({
+      ...r,
+      jobDescription: prompt, // Use the current prompt as the job description
+      status: 'Em Análise' // Initial status
+    }));
+    setResults(prev => [...resultsWithJob, ...prev]);
+  };
+
+  const handleDeleteCandidate = (id: string) => {
+    setResults(prev => prev.filter(c => c.id !== id));
+    if (viewingCandidate?.id === id) setViewingCandidate(null);
+  };
+
+  const handleUpdateStatus = (id: string, newStatus: string) => {
+    setResults(prev => prev.map(c => c.id === id ? { ...c, status: newStatus } : c));
   };
 
   return (
@@ -88,11 +102,15 @@ export default function Home() {
                     <CandidateProfile 
                       candidate={viewingCandidate} 
                       onClose={() => setViewingCandidate(null)} 
+                      onDelete={handleDeleteCandidate}
+                      onUpdateStatus={handleUpdateStatus}
                     />
                   ) : (
                     <CandidateList 
                       candidates={results} 
                       onViewProfile={(c) => setViewingCandidate(c)}
+                      onDelete={handleDeleteCandidate}
+                      onUpdateStatus={handleUpdateStatus}
                     />
                   )}
                 </div>
