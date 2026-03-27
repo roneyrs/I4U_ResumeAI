@@ -6,26 +6,68 @@ import TopBar from '@/components/TopBar';
 import Dashboard from '@/components/Dashboard';
 import ApiConfig from '@/components/ApiConfig';
 import BatchUpload from '@/components/BatchUpload';
-import CandidateList from '@/components/CandidateList';
+import CandidateList, { Candidate } from '@/components/CandidateList';
+import CandidateProfile from '@/components/CandidateProfile';
 import { motion, AnimatePresence } from 'motion/react';
 
 export default function Home() {
   const [activeTab, setActiveTab] = React.useState('dashboard');
   const [apiKey, setApiKey] = React.useState('');
-  const [results, setResults] = React.useState<any[]>([]);
+  const [prompt, setPrompt] = React.useState('Analise para vaga de cientista de dados');
+  const [results, setResults] = React.useState<Candidate[]>([]);
+  const [viewingCandidate, setViewingCandidate] = React.useState<Candidate | null>(null);
+  const [isSidebarOpen, setIsSidebarOpen] = React.useState(false);
+
+  // Load data from localStorage on mount
+  React.useEffect(() => {
+    const savedApiKey = localStorage.getItem('i4u_api_key');
+    const savedPrompt = localStorage.getItem('i4u_last_prompt');
+    const savedResults = localStorage.getItem('i4u_results');
+
+    if (savedApiKey) setApiKey(savedApiKey);
+    if (savedPrompt) setPrompt(savedPrompt);
+    if (savedResults) {
+      try {
+        setResults(JSON.parse(savedResults));
+      } catch (e) {
+        console.error('Error parsing saved results', e);
+      }
+    }
+  }, []);
+
+  // Save data to localStorage whenever it changes
+  React.useEffect(() => {
+    if (apiKey) localStorage.setItem('i4u_api_key', apiKey);
+  }, [apiKey]);
+
+  React.useEffect(() => {
+    if (prompt) localStorage.setItem('i4u_last_prompt', prompt);
+  }, [prompt]);
+
+  React.useEffect(() => {
+    if (results.length > 0) localStorage.setItem('i4u_results', JSON.stringify(results));
+  }, [results]);
 
   const handleBatchComplete = (newResults: any[]) => {
     setResults(prev => [...newResults, ...prev]);
   };
 
   return (
-    <div className="flex min-h-screen bg-surface">
-      <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} />
+    <div className="flex min-h-screen bg-surface overflow-x-hidden">
+      <Sidebar 
+        activeTab={activeTab} 
+        setActiveTab={(tab) => {
+          setActiveTab(tab);
+          setIsSidebarOpen(false);
+        }} 
+        isOpen={isSidebarOpen}
+        onClose={() => setIsSidebarOpen(false)}
+      />
       
-      <main className="flex-1 ml-64 min-h-screen flex flex-col relative">
-        <TopBar />
+      <main className="flex-1 lg:ml-64 min-h-screen flex flex-col relative w-full">
+        <TopBar apiKey={apiKey} onMenuClick={() => setIsSidebarOpen(true)} />
         
-        <div className="pt-24 px-10 pb-12 max-w-7xl mx-auto w-full flex-1">
+        <div className="pt-24 px-4 md:px-10 pb-12 max-w-7xl mx-auto w-full flex-1">
           <AnimatePresence mode="wait">
             <motion.div
               key={activeTab}
@@ -35,38 +77,39 @@ export default function Home() {
               transition={{ duration: 0.2 }}
             >
               {activeTab === 'dashboard' && (
-                <div className="grid grid-cols-12 gap-6">
-                  <div className="col-span-12 lg:col-span-8">
-                    <Dashboard />
-                  </div>
-                  <div className="col-span-12 lg:col-span-4">
-                    <ApiConfig apiKey={apiKey} setApiKey={setApiKey} />
-                  </div>
+                <div className="max-w-5xl">
+                  <Dashboard results={results} onNavigate={setActiveTab} />
                 </div>
               )}
 
               {activeTab === 'candidates' && (
                 <div className="space-y-6">
-                  <section>
-                    <h2 className="text-3xl font-headline font-bold text-slate-900">Banco de Talentos</h2>
-                    <p className="text-slate-500">Visualize e filtre os candidatos analisados pela IA.</p>
-                  </section>
-                  <CandidateList />
+                  {viewingCandidate ? (
+                    <CandidateProfile 
+                      candidate={viewingCandidate} 
+                      onClose={() => setViewingCandidate(null)} 
+                    />
+                  ) : (
+                    <CandidateList 
+                      candidates={results} 
+                      onViewProfile={(c) => setViewingCandidate(c)}
+                    />
+                  )}
                 </div>
               )}
 
               {activeTab === 'batch' && (
-                <div className="grid grid-cols-12 gap-6">
-                  <div className="col-span-12 lg:col-span-8">
-                    <section className="mb-8">
-                      <h2 className="text-3xl font-headline font-bold text-slate-900">Envio em Lote</h2>
-                      <p className="text-slate-500">Faça o upload de múltiplos currículos para análise simultânea.</p>
-                    </section>
-                    <BatchUpload apiKey={apiKey} onComplete={handleBatchComplete} />
-                  </div>
-                  <div className="col-span-12 lg:col-span-4">
-                    <ApiConfig apiKey={apiKey} setApiKey={setApiKey} />
-                  </div>
+                <div className="max-w-5xl">
+                  <section className="mb-8">
+                    <h2 className="text-3xl font-headline font-bold text-slate-900">Envio em Lote</h2>
+                    <p className="text-slate-500">Faça o upload de múltiplos currículos para análise simultânea.</p>
+                  </section>
+                  <BatchUpload 
+                    apiKey={apiKey} 
+                    prompt={prompt}
+                    setPrompt={setPrompt}
+                    onComplete={handleBatchComplete} 
+                  />
                 </div>
               )}
 
@@ -76,7 +119,7 @@ export default function Home() {
                     <h2 className="text-3xl font-headline font-bold text-slate-900">Configurações</h2>
                     <p className="text-slate-500">Gerencie suas chaves de API e conexões de serviço.</p>
                   </section>
-                  <ApiConfig apiKey={apiKey} setApiKey={setApiKey} />
+                  <ApiConfig apiKey={apiKey} onApiKeyChange={setApiKey} />
                 </div>
               )}
             </motion.div>
@@ -102,6 +145,7 @@ export default function Home() {
           </div>
         </footer>
       </main>
+
     </div>
   );
 }

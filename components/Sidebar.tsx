@@ -1,25 +1,39 @@
 'use client';
 
 import React from 'react';
-import { LayoutDashboard, Users, CloudUpload, Key, Plus, LogOut } from 'lucide-react';
+import { LayoutDashboard, Users, CloudUpload, Settings, Plus, LogOut } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import Image from 'next/image';
 
 interface SidebarProps {
   activeTab: string;
   setActiveTab: (tab: string) => void;
+  isOpen?: boolean;
+  onClose?: () => void;
 }
 
-export default function Sidebar({ activeTab, setActiveTab }: SidebarProps) {
+export default function Sidebar({ activeTab, setActiveTab, isOpen, onClose }: SidebarProps) {
   const menuItems = [
     { id: 'dashboard', label: 'Painel', icon: LayoutDashboard },
-    { id: 'candidates', label: 'Lista de Candidatos', icon: Users },
-    { id: 'batch', label: 'Envio em Lote', icon: CloudUpload },
-    { id: 'api', label: 'Configurações de API', icon: Key },
+    { id: 'candidates', label: 'Banco de Talentos', icon: Users },
+    { id: 'batch', label: 'Upload em Lote', icon: CloudUpload },
+    { id: 'api', label: 'Configurações API', icon: Settings },
   ];
 
   return (
-    <aside className="h-screen w-64 fixed left-0 top-0 bg-secondary text-white flex flex-col p-4 gap-2 antialiased text-sm z-50">
+    <>
+      {/* Mobile Overlay */}
+      {isOpen && (
+        <div 
+          className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[60] lg:hidden" 
+          onClick={onClose}
+        />
+      )}
+
+      <aside className={cn(
+        "h-screen w-64 fixed left-0 top-0 bg-secondary text-white flex flex-col p-4 gap-2 antialiased text-sm z-[70] transition-transform duration-300 lg:translate-x-0",
+        isOpen ? "translate-x-0" : "-translate-x-full"
+      )}>
       <div className="mb-8 px-2">
         <div className="flex items-center gap-2 mb-2">
           <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center overflow-hidden">
@@ -76,5 +90,6 @@ export default function Sidebar({ activeTab, setActiveTab }: SidebarProps) {
         </div>
       </div>
     </aside>
+    </>
   );
 }
