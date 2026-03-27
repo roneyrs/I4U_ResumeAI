@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { LayoutDashboard, Users, CloudUpload, Settings, Plus, LogOut } from 'lucide-react';
+import { LayoutDashboard, Users, CloudUpload, Settings, Plus, LogOut, User } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import Image from 'next/image';
 
@@ -17,6 +17,7 @@ export default function Sidebar({ activeTab, setActiveTab, isOpen, onClose }: Si
     { id: 'dashboard', label: 'Painel', icon: LayoutDashboard },
     { id: 'candidates', label: 'Banco de Talentos', icon: Users },
     { id: 'batch', label: 'Upload em Lote', icon: CloudUpload },
+    { id: 'profile', label: 'Perfil do Usuário', icon: User },
     { id: 'api', label: 'Configurações API', icon: Settings },
   ];
 

@@ -41,11 +41,23 @@ export default function CandidateProfile({ candidate, onClose, onDelete, onUpdat
   ];
 
   return (
-    <div className="bg-slate-50 rounded-[40px] border border-slate-100 shadow-sm overflow-hidden flex flex-col">
+    <div className="fixed inset-0 z-50 flex justify-end">
+      {/* Backdrop */}
       <motion.div 
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="flex flex-col h-full"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        onClick={onClose}
+        className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm"
+      />
+
+      {/* Panel */}
+      <motion.div 
+        initial={{ x: '100%' }}
+        animate={{ x: 0 }}
+        exit={{ x: '100%' }}
+        transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+        className="relative w-full max-w-3xl bg-slate-50 shadow-2xl flex flex-col h-full overflow-hidden"
       >
         {/* Header Bar */}
         <div className="px-6 sm:px-10 py-4 sm:py-6 flex items-center justify-between bg-white border-b border-slate-100 shrink-0">
@@ -64,9 +76,8 @@ export default function CandidateProfile({ candidate, onClose, onDelete, onUpdat
           </button>
         </div>
 
-        <div className="p-6 sm:p-10 flex flex-col lg:flex-row gap-6 sm:gap-10">
-          {/* Left Column: Main Info */}
-          <div className="flex-1 space-y-6 sm:space-y-8">
+        <div className="flex-1 overflow-y-auto custom-scrollbar">
+          <div className="p-6 sm:p-10 space-y-8">
             {/* Profile Card */}
             <div className="bg-white p-6 sm:p-8 rounded-[24px] sm:rounded-[32px] border border-slate-100 shadow-sm flex flex-col md:flex-row items-center md:items-start gap-6 sm:gap-8">
               <div className="relative shrink-0">
@@ -102,53 +113,40 @@ export default function CandidateProfile({ candidate, onClose, onDelete, onUpdat
                     <Phone className="w-4 h-4 text-primary shrink-0" />
                     <span className="text-xs sm:text-sm font-medium text-slate-600">{candidate.phone || '+55 (11) 98877-6655'}</span>
                   </div>
-                  <div className="flex items-center gap-3 px-4 py-3 bg-slate-50 rounded-xl sm:rounded-2xl border border-slate-100">
-                    <MapPin className="w-4 h-4 text-primary shrink-0" />
-                    <span className="text-xs sm:text-sm font-medium text-slate-600">São Paulo, BR</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <button className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-white border border-slate-200 rounded-xl sm:rounded-2xl text-xs sm:text-sm font-bold text-slate-600 hover:bg-slate-50 transition-all">
-                      <FileText className="w-4 h-4" />
-                      Ver PDF
-                    </button>
-                    <button className="p-3 bg-white border border-slate-200 rounded-xl sm:rounded-2xl text-slate-400 hover:text-primary transition-all">
-                      <Share2 className="w-4 h-4" />
-                    </button>
-                  </div>
                 </div>
               </div>
+            </div>
 
-              <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
-                <select 
-                  value={candidate.status}
-                  onChange={(e) => onUpdateStatus?.(candidate.id, e.target.value)}
-                  className={`px-6 py-4 rounded-2xl sm:rounded-3xl font-bold border-2 transition-all cursor-pointer appearance-none text-center ${
-                    candidate.status === 'Aprovado' 
-                      ? 'bg-green-50 border-green-200 text-green-600' 
-                      : 'bg-amber-50 border-amber-200 text-amber-600'
-                  }`}
-                >
-                  <option value="Em Análise">Em Análise</option>
-                  <option value="Aprovado">Aprovado</option>
-                  <option value="Reprovado">Reprovado</option>
-                </select>
+            <div className="flex flex-wrap gap-3">
+              <select 
+                value={candidate.status}
+                onChange={(e) => onUpdateStatus?.(candidate.id, e.target.value)}
+                className={`px-6 py-4 rounded-2xl sm:rounded-3xl font-bold border-2 transition-all cursor-pointer appearance-none text-center flex-1 sm:flex-none ${
+                  candidate.status === 'Aprovado' 
+                    ? 'bg-green-50 border-green-200 text-green-600' 
+                    : 'bg-amber-50 border-amber-200 text-amber-600'
+                }`}
+              >
+                <option value="Em Análise">Em Análise</option>
+                <option value="Aprovado">Aprovado</option>
+                <option value="Reprovado">Reprovado</option>
+              </select>
 
-                <button 
-                  onClick={() => {
-                    if (confirm('Tem certeza que deseja excluir este candidato?')) {
-                      onDelete?.(candidate.id);
-                    }
-                  }}
-                  className="px-6 py-4 bg-red-50 text-red-600 border-2 border-red-100 rounded-2xl sm:rounded-3xl font-bold hover:bg-red-100 transition-all flex items-center justify-center gap-2"
-                >
-                  Excluir
-                </button>
+              <button 
+                onClick={() => {
+                  if (confirm('Tem certeza que deseja excluir este candidato?')) {
+                    onDelete?.(candidate.id);
+                  }
+                }}
+                className="px-6 py-4 bg-red-50 text-red-600 border-2 border-red-100 rounded-2xl sm:rounded-3xl font-bold hover:bg-red-100 transition-all flex items-center justify-center gap-2 flex-1 sm:flex-none"
+              >
+                Excluir
+              </button>
 
-                <button className="px-6 sm:px-8 py-4 sm:py-5 bg-primary text-white rounded-2xl sm:rounded-3xl font-bold shadow-xl shadow-primary/20 hover:brightness-110 active:scale-95 transition-all flex items-center justify-center gap-3">
-                  <UserCheck className="w-5 h-5" />
-                  Contratar
-                </button>
-              </div>
+              <button className="px-6 sm:px-8 py-4 sm:py-5 bg-primary text-white rounded-2xl sm:rounded-3xl font-bold shadow-xl shadow-primary/20 hover:brightness-110 active:scale-95 transition-all flex items-center justify-center gap-3 flex-1 sm:flex-none">
+                <UserCheck className="w-5 h-5" />
+                Contratar
+              </button>
             </div>
 
             {/* Executive Summary */}
@@ -221,14 +219,11 @@ export default function CandidateProfile({ candidate, onClose, onDelete, onUpdat
                 </div>
               </div>
             </div>
-          </div>
 
-          {/* Right Column: Evaluation & Status */}
-          <div className="w-full lg:w-80 space-y-6 sm:space-y-8">
             {/* Evaluation Core */}
             <div className="bg-white p-6 sm:p-8 rounded-[24px] sm:rounded-[40px] border border-slate-100 shadow-sm">
               <h3 className="text-lg sm:text-xl font-bold text-slate-900 mb-6 sm:mb-8">Núcleo de Avaliação</h3>
-              <div className="space-y-6 sm:space-y-8">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 sm:gap-8">
                 {evaluationScores.map(item => (
                   <div key={item.label}>
                     <div className="flex justify-between items-end mb-2 sm:mb-3">
@@ -244,37 +239,6 @@ export default function CandidateProfile({ candidate, onClose, onDelete, onUpdat
                     </div>
                   </div>
                 ))}
-              </div>
-            </div>
-
-            {/* Allocation Status */}
-            <div className="bg-slate-900 p-6 sm:p-8 rounded-[24px] sm:rounded-[40px] shadow-xl">
-              <h3 className="text-lg sm:text-xl font-bold text-white mb-6 sm:mb-8">Alocação no Fluxo</h3>
-              <div className="grid grid-cols-2 gap-3 sm:gap-4">
-                <button className="flex flex-col items-center justify-center gap-2 sm:gap-3 p-3 sm:p-4 bg-white/5 border border-white/10 rounded-2xl sm:rounded-3xl hover:bg-white/10 transition-all group">
-                  <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg sm:rounded-xl bg-primary/20 flex items-center justify-center text-primary group-hover:scale-110 transition-all">
-                    <Zap className="w-4 h-4 sm:w-5 sm:h-5 fill-current" />
-                  </div>
-                  <span className="text-[8px] sm:text-[10px] font-bold text-white uppercase tracking-widest">Top Talent</span>
-                </button>
-                <button className="flex flex-col items-center justify-center gap-2 sm:gap-3 p-3 sm:p-4 bg-white/5 border border-white/10 rounded-2xl sm:rounded-3xl hover:bg-white/10 transition-all group">
-                  <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg sm:rounded-xl bg-slate-700 flex items-center justify-center text-white group-hover:scale-110 transition-all">
-                    <Zap className="w-4 h-4 sm:w-5 sm:h-5" />
-                  </div>
-                  <span className="text-[8px] sm:text-[10px] font-bold text-white uppercase tracking-widest">Potencial</span>
-                </button>
-                <button className="flex flex-col items-center justify-center gap-2 sm:gap-3 p-3 sm:p-4 bg-white/5 border border-white/10 rounded-2xl sm:rounded-3xl hover:bg-white/10 transition-all group">
-                  <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg sm:rounded-xl bg-slate-700 flex items-center justify-center text-white group-hover:scale-110 transition-all">
-                    <Zap className="w-4 h-4 sm:w-5 sm:h-5" />
-                  </div>
-                  <span className="text-[8px] sm:text-[10px] font-bold text-white uppercase tracking-widest">Follow Up</span>
-                </button>
-                <button className="flex flex-col items-center justify-center gap-2 sm:gap-3 p-3 sm:p-4 bg-white/5 border border-white/10 rounded-2xl sm:rounded-3xl hover:bg-white/10 transition-all group">
-                  <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg sm:rounded-xl bg-slate-700 flex items-center justify-center text-white group-hover:scale-110 transition-all">
-                    <Zap className="w-4 h-4 sm:w-5 sm:h-5" />
-                  </div>
-                  <span className="text-[8px] sm:text-[10px] font-bold text-white uppercase tracking-widest">Arquivo</span>
-                </button>
               </div>
             </div>
 
