@@ -32,6 +32,11 @@ export interface Candidate {
   phone?: string;
   role?: string;
   jobDescription?: string;
+  experienceYears?: string;
+  skills?: string[];
+  attentionAreas?: string[];
+  strengths?: string[];
+  evaluationScores?: { label: string; score: number }[];
 }
 
 interface CandidateListProps {
@@ -277,8 +282,8 @@ Este arquivo contém os dados estruturados extraídos do documento original.]
                     </td>
                     <td className="px-8 py-6">
                       <div className="space-y-0.5">
-                        <p className="text-sm font-medium text-slate-700">{c.email || 's.jenning@cloud-ops.ai'}</p>
-                        <p className="text-xs text-slate-400">{c.phone || '+1 (555) 092-8831'}</p>
+                        <p className="text-sm font-medium text-slate-700">{c.email || 'N/A'}</p>
+                        <p className="text-xs text-slate-400">{c.phone || 'N/A'}</p>
                       </div>
                     </td>
                     <td className="px-8 py-6">

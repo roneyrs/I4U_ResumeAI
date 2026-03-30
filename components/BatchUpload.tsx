@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import axios from 'axios';
 import { motion, AnimatePresence } from 'motion/react';
+import { GoogleGenAI } from "@google/genai";
 
 interface BatchUploadProps {
   apiKey: string;
@@ -120,6 +121,61 @@ export default function BatchUpload({ apiKey, prompt, setPrompt, onComplete }: B
         await new Promise(r => setTimeout(r, 500));
 
         const data = response.data;
+
+        // Use Gemini to extract structured data from the analysis if missing
+        let extractedData = {
+          email: data.email,
+          phone: data.telefone || data.phone,
+          experienceYears: data.anos_experiencia,
+          skills: data.habilidades || data.skills,
+          strengths: data.pontos_fortes,
+          attentionAreas: data.areas_atencao,
+          role: data.cargo || data.role
+        };
+
+        if (!extractedData.email || !extractedData.phone || !extractedData.experienceYears || !extractedData.skills) {
+          try {
+            const ai = new GoogleGenAI({ apiKey: process.env.NEXT_PUBLIC_GEMINI_API_KEY || apiKey });
+            
+            const extractionPrompt = `
+              Com base na seguinte análise de currículo, extraia as informações estruturadas em JSON:
+              Análise: ${data.analise}
+              
+              Retorne APENAS o JSON no seguinte formato:
+              {
+                "email": "string ou null",
+                "phone": "string ou null",
+                "experienceYears": "string ou null",
+                "skills": ["string"],
+                "strengths": ["string"],
+                "attentionAreas": ["string"],
+                "role": "string ou null"
+              }
+            `;
+
+            const result = await ai.models.generateContent({
+              model: "gemini-3-flash-preview",
+              contents: extractionPrompt,
+            });
+            const text = result.text;
+            const jsonMatch = text?.match(/\{[\s\S]*\}/);
+            if (jsonMatch) {
+              const parsed = JSON.parse(jsonMatch[0]);
+              extractedData = {
+                email: extractedData.email || parsed.email,
+                phone: extractedData.phone || parsed.phone,
+                experienceYears: extractedData.experienceYears || parsed.experienceYears,
+                skills: extractedData.skills || parsed.skills,
+                strengths: extractedData.strengths || parsed.strengths,
+                attentionAreas: extractedData.attentionAreas || parsed.attentionAreas,
+                role: extractedData.role || parsed.role
+              };
+            }
+          } catch (e) {
+            console.error("Erro ao extrair dados com Gemini:", e);
+          }
+        }
+
         const result = {
           id: Math.random().toString(36).substr(2, 9),
           name: currentFile.name.replace('.pdf', ''),
@@ -127,9 +183,13 @@ export default function BatchUpload({ apiKey, prompt, setPrompt, onComplete }: B
           analysis: data.analise,
           status: 'Em Análise',
           date: new Date().toISOString(),
-          email: `${currentFile.name.toLowerCase().replace(/\s+/g, '.').replace('.pdf', '')}@cloud-ops.ai`,
-          phone: `+55 (11) 9${Math.floor(1000 + Math.random() * 9000)}-${Math.floor(1000 + Math.random() * 9000)}`,
-          role: 'Especialista de Sistemas'
+          email: extractedData.email || `${currentFile.name.toLowerCase().replace(/\s+/g, '.').replace('.pdf', '')}@cloud-ops.ai`,
+          phone: extractedData.phone || `+55 (11) 9${Math.floor(1000 + Math.random() * 9000)}-${Math.floor(1000 + Math.random() * 9000)}`,
+          role: extractedData.role || 'Especialista de Sistemas',
+          experienceYears: extractedData.experienceYears,
+          skills: extractedData.skills,
+          strengths: extractedData.strengths,
+          attentionAreas: extractedData.attentionAreas
         };
 
         results.push(result);

@@ -28,14 +28,14 @@ interface CandidateProfileProps {
 
 export default function CandidateProfile({ candidate, onClose, onDelete, onUpdateStatus }: CandidateProfileProps) {
   // Mock scores for the evaluation core
-  const evaluationScores = [
-    { label: 'Proficiência Técnica', score: 10.0 },
-    { label: 'Design de Sistemas', score: 9.5 },
-    { label: 'Habilidades de Liderança', score: 9.0 },
-    { label: 'Fit Cultural', score: 9.0 },
+  const evaluationScores = candidate.evaluationScores || [
+    { label: 'Proficiência Técnica', score: candidate.score || 10.0 },
+    { label: 'Design de Sistemas', score: (candidate.score * 0.95) || 9.5 },
+    { label: 'Habilidades de Liderança', score: (candidate.score * 0.9) || 9.0 },
+    { label: 'Fit Cultural', score: (candidate.score * 0.9) || 9.0 },
   ];
 
-  const skills = [
+  const skills = candidate.skills || [
     'Kubernetes & Docker', 'Go / Golang', 'Kafka / RabbitMQ', 
     'AWS (Solutions Arch)', 'Microservices Pattern'
   ];
@@ -101,17 +101,17 @@ export default function CandidateProfile({ candidate, onClose, onDelete, onUpdat
                 <div className="flex flex-wrap justify-center md:justify-start items-center gap-3 sm:gap-6 text-primary font-bold mb-4 sm:mb-6 text-sm sm:text-base">
                   <span>{candidate.role || 'Arquiteta de Software Sênior'}</span>
                   <div className="hidden sm:block w-1.5 h-1.5 rounded-full bg-slate-300"></div>
-                  <span className="hidden sm:inline">12+ Anos de Experiência</span>
+                  <span className="hidden sm:inline">{candidate.experienceYears || '12+'} Anos de Experiência</span>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                   <div className="flex items-center gap-3 px-4 py-3 bg-slate-50 rounded-xl sm:rounded-2xl border border-slate-100">
                     <Mail className="w-4 h-4 text-primary shrink-0" />
-                    <span className="text-xs sm:text-sm font-medium text-slate-600 truncate">{candidate.email || 'adriana.m@example.com'}</span>
+                    <span className="text-xs sm:text-sm font-medium text-slate-600 truncate">{candidate.email || 'N/A'}</span>
                   </div>
                   <div className="flex items-center gap-3 px-4 py-3 bg-slate-50 rounded-xl sm:rounded-2xl border border-slate-100">
                     <Phone className="w-4 h-4 text-primary shrink-0" />
-                    <span className="text-xs sm:text-sm font-medium text-slate-600">{candidate.phone || '+55 (11) 98877-6655'}</span>
+                    <span className="text-xs sm:text-sm font-medium text-slate-600">{candidate.phone || 'N/A'}</span>
                   </div>
                 </div>
               </div>
@@ -194,14 +194,23 @@ export default function CandidateProfile({ candidate, onClose, onDelete, onUpdat
                       Pontos Fortes
                     </div>
                     <ul className="space-y-2 sm:space-y-3">
-                      <li className="text-xs sm:text-sm text-slate-600 flex gap-2">
-                        <span className="w-1.5 h-1.5 rounded-full bg-green-500 mt-1.5 shrink-0"></span>
-                        Capacidade comprovada de liderar migrações de cloud complexas.
-                      </li>
-                      <li className="text-xs sm:text-sm text-slate-600 flex gap-2">
-                        <span className="w-1.5 h-1.5 rounded-full bg-green-500 mt-1.5 shrink-0"></span>
-                        Forte viés de mentoria e desenvolvimento de times técnicos.
-                      </li>
+                      {(candidate.strengths && candidate.strengths.length > 0) ? candidate.strengths.map((strength, idx) => (
+                        <li key={idx} className="text-xs sm:text-sm text-slate-600 flex gap-2">
+                          <span className="w-1.5 h-1.5 rounded-full bg-green-500 mt-1.5 shrink-0"></span>
+                          {strength}
+                        </li>
+                      )) : (
+                        <>
+                          <li className="text-xs sm:text-sm text-slate-600 flex gap-2">
+                            <span className="w-1.5 h-1.5 rounded-full bg-green-500 mt-1.5 shrink-0"></span>
+                            Capacidade comprovada de liderar migrações de cloud complexas.
+                          </li>
+                          <li className="text-xs sm:text-sm text-slate-600 flex gap-2">
+                            <span className="w-1.5 h-1.5 rounded-full bg-green-500 mt-1.5 shrink-0"></span>
+                            Forte viés de mentoria e desenvolvimento de times técnicos.
+                          </li>
+                        </>
+                      )}
                     </ul>
                   </div>
                   <div className="p-4 sm:p-6 bg-amber-50/50 rounded-2xl sm:rounded-3xl border border-amber-100">
@@ -210,10 +219,17 @@ export default function CandidateProfile({ candidate, onClose, onDelete, onUpdat
                       Áreas de Atenção
                     </div>
                     <ul className="space-y-2 sm:space-y-3">
-                      <li className="text-xs sm:text-sm text-slate-600 flex gap-2">
-                        <span className="w-1.5 h-1.5 rounded-full bg-amber-500 mt-1.5 shrink-0"></span>
-                        Expectativa salarial no limite superior da faixa orçamentária.
-                      </li>
+                      {(candidate.attentionAreas && candidate.attentionAreas.length > 0) ? candidate.attentionAreas.map((area, idx) => (
+                        <li key={idx} className="text-xs sm:text-sm text-slate-600 flex gap-2">
+                          <span className="w-1.5 h-1.5 rounded-full bg-amber-500 mt-1.5 shrink-0"></span>
+                          {area}
+                        </li>
+                      )) : (
+                        <li className="text-xs sm:text-sm text-slate-600 flex gap-2">
+                          <span className="w-1.5 h-1.5 rounded-full bg-amber-500 mt-1.5 shrink-0"></span>
+                          Expectativa salarial no limite superior da faixa orçamentária.
+                        </li>
+                      )}
                     </ul>
                   </div>
                 </div>

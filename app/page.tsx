@@ -96,7 +96,9 @@ export default function Home() {
         // Map database fields to Candidate interface if necessary
         const mappedData = data.map(c => ({
           ...c,
-          jobDescription: c.job_description // Map snake_case to camelCase
+          jobDescription: c.job_description, // Map snake_case to camelCase
+          experienceYears: c.experience_years,
+          attentionAreas: c.attention_areas
         }));
         setResults(mappedData);
       }
@@ -150,6 +152,10 @@ export default function Home() {
       email: r.email,
       phone: r.phone,
       role: r.role,
+      experience_years: r.experienceYears,
+      skills: r.skills,
+      strengths: r.strengths,
+      attention_areas: r.attentionAreas,
       job_description: prompt
     }));
 
@@ -158,7 +164,9 @@ export default function Home() {
       const localResults = resultsWithJob.map((r, i) => ({
         ...r,
         id: `temp-${Date.now()}-${i}`,
-        jobDescription: r.job_description
+        jobDescription: r.job_description,
+        experienceYears: r.experience_years,
+        attentionAreas: r.attention_areas
       }));
       setResults(prev => [...localResults, ...prev]);
       return;
@@ -187,14 +195,18 @@ export default function Home() {
       const localResults = resultsWithJob.map((r, i) => ({
         ...r,
         id: `temp-${Date.now()}-${i}`,
-        jobDescription: r.job_description
+        jobDescription: r.job_description,
+        experienceYears: r.experience_years,
+        attentionAreas: r.attention_areas
       }));
       setResults(prev => [...localResults, ...prev]);
     } else if (data) {
       console.log('Successfully saved candidates to Supabase:', data.length);
       const mappedData = data.map(c => ({
         ...c,
-        jobDescription: c.job_description
+        jobDescription: c.job_description,
+        experienceYears: c.experience_years,
+        attentionAreas: c.attention_areas
       }));
       setResults(prev => [...mappedData, ...prev]);
     }
