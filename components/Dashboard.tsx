@@ -10,6 +10,14 @@ interface DashboardProps {
   onViewCandidate?: (candidate: any) => void;
 }
 
+interface ActivityItem {
+  title: string;
+  desc: string;
+  time: string;
+  color: string;
+  candidate?: any;
+}
+
 export default function Dashboard({ results = [], onNavigate, onViewCandidate }: DashboardProps) {
   const totalProcessed = results.length;
   const averageScore = results.length > 0 
@@ -23,7 +31,7 @@ export default function Dashboard({ results = [], onNavigate, onViewCandidate }:
   ];
 
   // Generate real activities from results
-  const realActivities = results.slice(0, 3).map(res => ({
+  const realActivities: ActivityItem[] = results.slice(0, 3).map(res => ({
     title: `Análise: ${res.name}`,
     desc: `Score: ${res.score} - ${res.analysis?.substring(0, 60)}...`,
     time: res.date,
@@ -31,7 +39,7 @@ export default function Dashboard({ results = [], onNavigate, onViewCandidate }:
     candidate: res
   }));
 
-  const activities = realActivities.length > 0 ? realActivities : [
+  const activities: ActivityItem[] = realActivities.length > 0 ? realActivities : [
     { title: 'Sistema Pronto', desc: 'Aguardando novos currículos para análise.', time: 'Agora', color: 'bg-slate-200' },
   ];
 
