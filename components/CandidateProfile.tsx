@@ -14,6 +14,7 @@ import {
   ExternalLink,
   Download,
   Share2,
+  Trash2,
   MoreHorizontal
 } from 'lucide-react';
 import { motion } from 'motion/react';
@@ -27,6 +28,8 @@ interface CandidateProfileProps {
 }
 
 export default function CandidateProfile({ candidate, onClose, onDelete, onUpdateStatus }: CandidateProfileProps) {
+  const [isConfirmingDelete, setIsConfirmingDelete] = React.useState(false);
+
   // Mock scores for the evaluation core
   const evaluationScores = candidate.evaluationScores || [
     { label: 'Proficiência Técnica', score: candidate.score || 10.0 },
@@ -134,13 +137,30 @@ export default function CandidateProfile({ candidate, onClose, onDelete, onUpdat
 
               <button 
                 onClick={() => {
-                  if (confirm('Tem certeza que deseja excluir este candidato?')) {
+                  if (isConfirmingDelete) {
                     onDelete?.(candidate.id);
+                  } else {
+                    setIsConfirmingDelete(true);
+                    setTimeout(() => setIsConfirmingDelete(false), 3000);
                   }
                 }}
-                className="px-6 py-4 bg-red-50 text-red-600 border-2 border-red-100 rounded-2xl sm:rounded-3xl font-bold hover:bg-red-100 transition-all flex items-center justify-center gap-2 flex-1 sm:flex-none"
+                className={`px-6 py-4 border-2 rounded-2xl sm:rounded-3xl font-bold transition-all flex items-center justify-center gap-2 flex-1 sm:flex-none ${
+                  isConfirmingDelete 
+                    ? 'bg-red-600 text-white border-red-600 animate-pulse' 
+                    : 'bg-red-50 text-red-600 border-red-100 hover:bg-red-100'
+                }`}
               >
-                Excluir
+                {isConfirmingDelete ? (
+                  <>
+                    <Trash2 className="w-5 h-5" />
+                    Confirmar Exclusão?
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="w-5 h-5" />
+                    Excluir
+                  </>
+                )}
               </button>
 
               <button className="px-6 sm:px-8 py-4 sm:py-5 bg-primary text-white rounded-2xl sm:rounded-3xl font-bold shadow-xl shadow-primary/20 hover:brightness-110 active:scale-95 transition-all flex items-center justify-center gap-3 flex-1 sm:flex-none">

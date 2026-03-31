@@ -139,7 +139,7 @@ export default function Home() {
   }, [prompt]);
 
   React.useEffect(() => {
-    if (results.length > 0) localStorage.setItem('i4u_results', JSON.stringify(results));
+    localStorage.setItem('i4u_results', JSON.stringify(results));
   }, [results]);
 
   const handleBatchComplete = async (newResults: any[]) => {
@@ -292,7 +292,11 @@ export default function Home() {
               >
                 {activeTab === 'dashboard' && (
                   <div className="max-w-5xl">
-                    <Dashboard results={results} onNavigate={setActiveTab} />
+                    <Dashboard 
+                      results={results} 
+                      onNavigate={setActiveTab} 
+                      onViewCandidate={(c) => setViewingCandidate(c)}
+                    />
                   </div>
                 )}
 
@@ -304,17 +308,6 @@ export default function Home() {
                       onDelete={handleDeleteCandidate}
                       onUpdateStatus={handleUpdateStatus}
                     />
-                    
-                    <AnimatePresence>
-                      {viewingCandidate && (
-                        <CandidateProfile 
-                          candidate={viewingCandidate} 
-                          onClose={() => setViewingCandidate(null)} 
-                          onDelete={handleDeleteCandidate}
-                          onUpdateStatus={handleUpdateStatus}
-                        />
-                      )}
-                    </AnimatePresence>
                   </div>
                 )}
 
@@ -329,6 +322,7 @@ export default function Home() {
                       prompt={prompt}
                       setPrompt={setPrompt}
                       onComplete={handleBatchComplete} 
+                      onViewDetails={(c) => setViewingCandidate(c)}
                     />
                   </div>
                 )}
@@ -349,6 +343,17 @@ export default function Home() {
                   </div>
                 )}
               </motion.div>
+            </AnimatePresence>
+
+            <AnimatePresence>
+              {viewingCandidate && (
+                <CandidateProfile 
+                  candidate={viewingCandidate} 
+                  onClose={() => setViewingCandidate(null)} 
+                  onDelete={handleDeleteCandidate}
+                  onUpdateStatus={handleUpdateStatus}
+                />
+              )}
             </AnimatePresence>
           </div>
 

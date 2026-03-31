@@ -11,6 +11,7 @@ import {
   UserPlus, 
   Download, 
   Zap, 
+  Trash2,
   Folder, 
   ChevronLeft, 
   ChevronRight, 
@@ -52,6 +53,9 @@ export default function CandidateList({ candidates, onViewProfile, onDelete, onU
   const [scoreLimit, setScoreLimit] = React.useState(0.0);
   const [selectedIds, setSelectedIds] = React.useState<Set<string>>(new Set());
   const [exportType, setExportType] = React.useState<'analysis' | 'cv'>('analysis');
+  const [confirmingId, setConfirmingId] = React.useState<string | null>(null);
+  const [currentPage, setCurrentPage] = React.useState(1);
+  const itemsPerPage = 10;
 
   const filteredCandidates = candidates.filter(c => 
     (c.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -59,6 +63,15 @@ export default function CandidateList({ candidates, onViewProfile, onDelete, onU
     (c.jobDescription?.toLowerCase().includes(jobFilter.toLowerCase()) || !jobFilter) &&
     c.score >= scoreLimit
   );
+
+  const totalPages = Math.ceil(filteredCandidates.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const paginatedCandidates = filteredCandidates.slice(startIndex, startIndex + itemsPerPage);
+
+  // Reset to page 1 when filters change
+  React.useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, jobFilter, scoreLimit]);
 
   const toggleSelect = (id: string) => {
     const newSelected = new Set(selectedIds);
@@ -254,7 +267,7 @@ Este arquivo contém os dados estruturados extraídos do documento original.]
                   </td>
                 </tr>
               ) : (
-                filteredCandidates.map((c) => (
+                paginatedCandidates.map((c) => (
                   <tr key={c.id} className="hover:bg-slate-50/50 transition-all group">
                     <td className="px-8 py-6">
                       <input 
@@ -318,11 +331,23 @@ Este arquivo contém os dados estruturados extraídos do documento original.]
                           <Eye className="w-4 h-4" />
                         </button>
                         <button 
-                          onClick={() => onDelete?.(c.id)}
-                          className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
-                          title="Excluir"
+                          onClick={() => {
+                            if (confirmingId === c.id) {
+                              onDelete?.(c.id);
+                              setConfirmingId(null);
+                            } else {
+                              setConfirmingId(c.id);
+                              setTimeout(() => setConfirmingId(null), 3000);
+                            }
+                          }}
+                          className={`p-2 rounded-lg transition-all ${
+                            confirmingId === c.id 
+                              ? 'text-white bg-red-600 animate-pulse' 
+                              : 'text-slate-400 hover:text-red-500 hover:bg-red-50'
+                          }`}
+                          title={confirmingId === c.id ? 'Confirmar?' : 'Excluir'}
                         >
-                          <MoreVertical className="w-4 h-4" />
+                          <Trash2 className="w-4 h-4" />
                         </button>
                       </div>
                     </td>
@@ -335,17 +360,52 @@ Este arquivo contém os dados estruturados extraídos do documento original.]
         
         {/* Pagination */}
         <div className="p-6 border-t border-slate-50 flex items-center justify-between bg-white">
-          <p className="text-xs font-bold text-slate-400">Mostrando <span className="text-slate-900">25</span> de 1.284 candidatos</p>
+          <p className="text-xs font-bold text-slate-400">
+            Mostrando <span className="text-slate-900">{filteredCandidates.length > 0 ? startIndex + 1 : 0}</span> a <span className="text-slate-900">{Math.min(startIndex + itemsPerPage, filteredCandidates.length)}</span> de <span className="text-slate-900">{filteredCandidates.length}</span> candidatos
+          </p>
           <div className="flex items-center gap-2">
-            <button className="p-2 text-slate-400 hover:bg-slate-50 rounded-lg transition-all">
+            <button 
+              onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+              disabled={currentPage === 1}
+              className="p-2 text-slate-400 hover:bg-slate-50 rounded-lg transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+            >
               <ChevronLeft className="w-4 h-4" />
             </button>
-            <button className="w-8 h-8 bg-primary text-white rounded-lg text-xs font-bold">1</button>
-            <button className="w-8 h-8 hover:bg-slate-50 text-slate-600 rounded-lg text-xs font-bold">2</button>
-            <button className="w-8 h-8 hover:bg-slate-50 text-slate-600 rounded-lg text-xs font-bold">3</button>
-            <span className="text-slate-400 mx-1">...</span>
-            <button className="w-8 h-8 hover:bg-slate-50 text-slate-600 rounded-lg text-xs font-bold">52</button>
-            <button className="p-2 text-slate-400 hover:bg-slate-50 rounded-lg transition-all">
+            
+            {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => {
+              // Simple pagination logic: show first, last, and current +/- 1
+              if (
+                page === 1 || 
+                page === totalPages || 
+                (page >= currentPage - 1 && page <= currentPage + 1)
+              ) {
+                return (
+                  <button 
+                    key={page}
+                    onClick={() => setCurrentPage(page)}
+                    className={`w-8 h-8 rounded-lg text-xs font-bold transition-all ${
+                      currentPage === page 
+                        ? 'bg-primary text-white shadow-lg shadow-primary/20' 
+                        : 'hover:bg-slate-50 text-slate-600'
+                    }`}
+                  >
+                    {page}
+                  </button>
+                );
+              } else if (
+                (page === 2 && currentPage > 3) || 
+                (page === totalPages - 1 && currentPage < totalPages - 2)
+              ) {
+                return <span key={page} className="text-slate-400 mx-1">...</span>;
+              }
+              return null;
+            })}
+
+            <button 
+              onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+              disabled={currentPage === totalPages || totalPages === 0}
+              className="p-2 text-slate-400 hover:bg-slate-50 rounded-lg transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+            >
               <ChevronRight className="w-4 h-4" />
             </button>
           </div>

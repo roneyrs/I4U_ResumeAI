@@ -25,6 +25,7 @@ interface BatchUploadProps {
   prompt: string;
   setPrompt: (prompt: string) => void;
   onComplete: (results: any[]) => void;
+  onViewDetails?: (candidate: any) => void;
 }
 
 interface ProcessingFile {
@@ -33,10 +34,11 @@ interface ProcessingFile {
   progress: number;
   stage: string;
   result?: any;
+  candidate?: any;
   error?: string;
 }
 
-export default function BatchUpload({ apiKey, prompt, setPrompt, onComplete }: BatchUploadProps) {
+export default function BatchUpload({ apiKey, prompt, setPrompt, onComplete, onViewDetails }: BatchUploadProps) {
   const [files, setFiles] = React.useState<ProcessingFile[]>([]);
   const [isProcessing, setIsProcessing] = React.useState(false);
   const [processMode, setProcessMode] = React.useState<'individual' | 'batch'>('batch');
@@ -197,7 +199,7 @@ export default function BatchUpload({ apiKey, prompt, setPrompt, onComplete }: B
         // Update to Stage 4: Done
         setFiles(prev =>
           prev.map((f, idx) =>
-            idx === i ? { ...f, status: "done", progress: 100, stage: "Análise concluída", result: data } : f
+            idx === i ? { ...f, status: "done", progress: 100, stage: "Análise concluída", result: data, candidate: result } : f
           )
         );
       } catch (err: any) {
@@ -411,7 +413,10 @@ export default function BatchUpload({ apiKey, prompt, setPrompt, onComplete }: B
                             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Score IA:</span>
                             <span className="text-sm font-bold text-primary">{f.result?.pontuacao || '0.0'}</span>
                           </div>
-                          <button className="text-[10px] font-bold text-secondary uppercase tracking-widest flex items-center gap-1 hover:underline">
+                          <button 
+                            onClick={() => onViewDetails?.(f.candidate)}
+                            className="text-[10px] font-bold text-secondary uppercase tracking-widest flex items-center gap-1 hover:underline"
+                          >
                             Ver Detalhes <ChevronRight className="w-3 h-3" />
                           </button>
                         </div>

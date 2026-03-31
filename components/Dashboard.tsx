@@ -7,9 +7,10 @@ import { motion } from 'motion/react';
 interface DashboardProps {
   results?: any[];
   onNavigate?: (tab: string) => void;
+  onViewCandidate?: (candidate: any) => void;
 }
 
-export default function Dashboard({ results = [], onNavigate }: DashboardProps) {
+export default function Dashboard({ results = [], onNavigate, onViewCandidate }: DashboardProps) {
   const totalProcessed = results.length;
   const averageScore = results.length > 0 
     ? (results.reduce((acc, curr) => acc + curr.score, 0) / results.length).toFixed(1)
@@ -26,7 +27,8 @@ export default function Dashboard({ results = [], onNavigate }: DashboardProps) 
     title: `Análise: ${res.name}`,
     desc: `Score: ${res.score} - ${res.analysis?.substring(0, 60)}...`,
     time: res.date,
-    color: 'bg-primary'
+    color: 'bg-primary',
+    candidate: res
   }));
 
   const activities = realActivities.length > 0 ? realActivities : [
@@ -78,8 +80,12 @@ export default function Dashboard({ results = [], onNavigate }: DashboardProps) 
             <button className="text-[10px] font-bold text-slate-400 uppercase tracking-widest hover:text-primary transition-all">Ver Histórico Completo</button>
           </div>
           <div className="space-y-8">
-            {activities.map((act) => (
-              <div key={act.title} className="flex gap-6 group cursor-pointer">
+            {activities.map((act, idx) => (
+              <div 
+                key={act.title + idx} 
+                className="flex gap-6 group cursor-pointer"
+                onClick={() => act.candidate && onViewCandidate?.(act.candidate)}
+              >
                 <div className={`w-1.5 h-12 ${act.color} rounded-full shrink-0 group-hover:scale-y-110 transition-all`}></div>
                 <div className="flex-1">
                   <div className="flex justify-between items-start mb-1">
