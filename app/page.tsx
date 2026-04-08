@@ -96,9 +96,7 @@ export default function Home() {
         // Map database fields to Candidate interface if necessary
         const mappedData = data.map(c => ({
           ...c,
-          jobDescription: c.job_description, // Map snake_case to camelCase
-          experienceYears: c.experience_years,
-          attentionAreas: c.attention_areas
+          jobDescription: c.job_description // Map snake_case to camelCase
         }));
         setResults(mappedData);
       }
@@ -139,11 +137,10 @@ export default function Home() {
   }, [prompt]);
 
   React.useEffect(() => {
-    localStorage.setItem('i4u_results', JSON.stringify(results));
+    if (results.length > 0) localStorage.setItem('i4u_results', JSON.stringify(results));
   }, [results]);
 
   const handleBatchComplete = async (newResults: any[]) => {
-    console.log('Batch processing complete, preparing to save results:', newResults.length);
     const resultsWithJob = newResults.map(r => ({
       name: r.name,
       score: r.score,
@@ -153,10 +150,6 @@ export default function Home() {
       email: r.email,
       phone: r.phone,
       role: r.role,
-      experience_years: r.experienceYears,
-      skills: r.skills,
-      strengths: r.strengths,
-      attention_areas: r.attentionAreas,
       job_description: prompt
     }));
 
@@ -165,65 +158,45 @@ export default function Home() {
       const localResults = resultsWithJob.map((r, i) => ({
         ...r,
         id: `temp-${Date.now()}-${i}`,
-        jobDescription: r.job_description,
-        experienceYears: r.experience_years,
-        attentionAreas: r.attention_areas
+        jobDescription: r.job_description
       }));
       setResults(prev => [...localResults, ...prev]);
       return;
     }
 
-    try {
-      console.log('Inserting candidates into Supabase:', resultsWithJob.length);
-      const { data, error } = await supabase
-        .from('candidates')
-        .insert(resultsWithJob)
-        .select();
+    console.log('Inserting candidates into Supabase:', resultsWithJob.length);
+    const { data, error } = await supabase
+      .from('candidates')
+      .insert(resultsWithJob)
+      .select();
 
-      if (error) {
-        console.error('Supabase insertion error:', error);
-        console.error('Error details:', {
-          message: error.message,
-          details: error.details,
-          hint: error.hint,
-          code: error.code
-        });
-        throw error;
-      }
+    // Also save the job to the jobs table
+    await supabase
+      .from('jobs')
+      .insert({ title: prompt, description: prompt })
+      .select()
+      .then(({ error: jobError }) => {
+        if (jobError) console.error('Error saving job to Supabase:', jobError);
+        else console.log('Successfully saved job to Supabase');
+      });
 
-      if (data) {
-        console.log('Successfully saved candidates to Supabase:', data.length);
-        const mappedData = data.map(c => ({
-          ...c,
-          jobDescription: c.job_description,
-          experienceYears: c.experience_years,
-          attentionAreas: c.attention_areas
-        }));
-        setResults(prev => [...mappedData, ...prev]);
-      }
-
-      // Also save the job to the jobs table
-      console.log('Saving job context to Supabase...');
-      const { error: jobError } = await supabase
-        .from('jobs')
-        .insert({ title: prompt, description: prompt })
-        .select();
-
-      if (jobError) {
-        console.error('Error saving job to Supabase:', jobError);
-      } else {
-        console.log('Successfully saved job to Supabase');
-      }
-    } catch (err) {
-      console.error('Failed to save to Supabase, falling back to local state:', err);
+    if (error) {
+      console.error('Error saving candidates to Supabase:', error);
+      console.error('Error details:', error.details, error.hint, error.message);
+      // Fallback to local state if Supabase fails
       const localResults = resultsWithJob.map((r, i) => ({
         ...r,
         id: `temp-${Date.now()}-${i}`,
-        jobDescription: r.job_description,
-        experienceYears: r.experience_years,
-        attentionAreas: r.attention_areas
+        jobDescription: r.job_description
       }));
       setResults(prev => [...localResults, ...prev]);
+    } else if (data) {
+      console.log('Successfully saved candidates to Supabase:', data.length);
+      const mappedData = data.map(c => ({
+        ...c,
+        jobDescription: c.job_description
+      }));
+      setResults(prev => [...mappedData, ...prev]);
     }
   };
 
@@ -307,11 +280,7 @@ export default function Home() {
               >
                 {activeTab === 'dashboard' && (
                   <div className="max-w-5xl">
-                    <Dashboard 
-                      results={results} 
-                      onNavigate={setActiveTab} 
-                      onViewCandidate={(c) => setViewingCandidate(c)}
-                    />
+                    <Dashboard results={results} onNavigate={setActiveTab} />
                   </div>
                 )}
 
@@ -323,6 +292,17 @@ export default function Home() {
                       onDelete={handleDeleteCandidate}
                       onUpdateStatus={handleUpdateStatus}
                     />
+                    
+                    <AnimatePresence>
+                      {viewingCandidate && (
+                        <CandidateProfile 
+                          candidate={viewingCandidate} 
+                          onClose={() => setViewingCandidate(null)} 
+                          onDelete={handleDeleteCandidate}
+                          onUpdateStatus={handleUpdateStatus}
+                        />
+                      )}
+                    </AnimatePresence>
                   </div>
                 )}
 
@@ -337,7 +317,6 @@ export default function Home() {
                       prompt={prompt}
                       setPrompt={setPrompt}
                       onComplete={handleBatchComplete} 
-                      onViewDetails={(c) => setViewingCandidate(c)}
                     />
                   </div>
                 )}
@@ -358,17 +337,6 @@ export default function Home() {
                   </div>
                 )}
               </motion.div>
-            </AnimatePresence>
-
-            <AnimatePresence>
-              {viewingCandidate && (
-                <CandidateProfile 
-                  candidate={viewingCandidate} 
-                  onClose={() => setViewingCandidate(null)} 
-                  onDelete={handleDeleteCandidate}
-                  onUpdateStatus={handleUpdateStatus}
-                />
-              )}
             </AnimatePresence>
           </div>
 

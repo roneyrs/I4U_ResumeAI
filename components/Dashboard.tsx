@@ -3,23 +3,13 @@
 import React from 'react';
 import { FileText, TrendingUp, Hourglass, Activity, ChevronRight, Zap, Cpu, Search } from 'lucide-react';
 import { motion } from 'motion/react';
-import { Candidate } from './CandidateList';
 
 interface DashboardProps {
-  results?: Candidate[];
+  results?: any[];
   onNavigate?: (tab: string) => void;
-  onViewCandidate?: (candidate: Candidate) => void;
 }
 
-interface ActivityItem {
-  title: string;
-  desc: string;
-  time: string;
-  color: string;
-  candidate?: Candidate;
-}
-
-export default function Dashboard({ results = [], onNavigate, onViewCandidate }: DashboardProps) {
+export default function Dashboard({ results = [], onNavigate }: DashboardProps) {
   const totalProcessed = results.length;
   const averageScore = results.length > 0 
     ? (results.reduce((acc, curr) => acc + curr.score, 0) / results.length).toFixed(1)
@@ -32,19 +22,16 @@ export default function Dashboard({ results = [], onNavigate, onViewCandidate }:
   ];
 
   // Generate real activities from results
-  const realActivities: ActivityItem[] = results.slice(0, 3).map(res => ({
+  const realActivities = results.slice(0, 3).map(res => ({
     title: `Análise: ${res.name}`,
     desc: `Score: ${res.score} - ${res.analysis?.substring(0, 60)}...`,
     time: res.date,
-    color: 'bg-primary',
-    candidate: res
+    color: 'bg-primary'
   }));
 
-  const fallbackActivities: ActivityItem[] = [
+  const activities = realActivities.length > 0 ? realActivities : [
     { title: 'Sistema Pronto', desc: 'Aguardando novos currículos para análise.', time: 'Agora', color: 'bg-slate-200' },
   ];
-
-  const activities = realActivities.length > 0 ? realActivities : fallbackActivities;
 
   return (
     <div className="space-y-12">
@@ -91,12 +78,8 @@ export default function Dashboard({ results = [], onNavigate, onViewCandidate }:
             <button className="text-[10px] font-bold text-slate-400 uppercase tracking-widest hover:text-primary transition-all">Ver Histórico Completo</button>
           </div>
           <div className="space-y-8">
-            {activities.map((act, idx) => (
-              <div 
-                key={act.title + idx} 
-                className="flex gap-6 group cursor-pointer"
-                onClick={() => act.candidate && onViewCandidate?.(act.candidate)}
-              >
+            {activities.map((act) => (
+              <div key={act.title} className="flex gap-6 group cursor-pointer">
                 <div className={`w-1.5 h-12 ${act.color} rounded-full shrink-0 group-hover:scale-y-110 transition-all`}></div>
                 <div className="flex-1">
                   <div className="flex justify-between items-start mb-1">

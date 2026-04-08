@@ -18,14 +18,12 @@ import {
 } from 'lucide-react';
 import axios from 'axios';
 import { motion, AnimatePresence } from 'motion/react';
-import { GoogleGenAI } from "@google/genai";
 
 interface BatchUploadProps {
   apiKey: string;
   prompt: string;
   setPrompt: (prompt: string) => void;
   onComplete: (results: any[]) => void;
-  onViewDetails?: (candidate: any) => void;
 }
 
 interface ProcessingFile {
@@ -34,11 +32,10 @@ interface ProcessingFile {
   progress: number;
   stage: string;
   result?: any;
-  candidate?: any;
   error?: string;
 }
 
-export default function BatchUpload({ apiKey, prompt, setPrompt, onComplete, onViewDetails }: BatchUploadProps) {
+export default function BatchUpload({ apiKey, prompt, setPrompt, onComplete }: BatchUploadProps) {
   const [files, setFiles] = React.useState<ProcessingFile[]>([]);
   const [isProcessing, setIsProcessing] = React.useState(false);
   const [processMode, setProcessMode] = React.useState<'individual' | 'batch'>('batch');
@@ -96,7 +93,7 @@ export default function BatchUpload({ apiKey, prompt, setPrompt, onComplete, onV
         // Update to Stage 2: AI Analysis
         setFiles(prev =>
           prev.map((f, idx) =>
-            idx === i ? { ...f, progress: 40, stage: "Analisando com IA..." } : f
+            idx === i ? { ...f, progress: 50, stage: "Analisando com IA..." } : f
           )
         );
 
@@ -111,78 +108,18 @@ export default function BatchUpload({ apiKey, prompt, setPrompt, onComplete, onV
             params: {
               prompt: prompt,
             },
-            timeout: 60000, // 60 second timeout
           }
         );
 
-        // Update to Stage 3: Data Extraction
+        // Update to Stage 3: Score Calculation
         setFiles(prev =>
           prev.map((f, idx) =>
-            idx === i ? { ...f, progress: 70, stage: "Extraindo dados estruturados..." } : f
+            idx === i ? { ...f, progress: 75, stage: "Calculando score..." } : f
           )
         );
+        await new Promise(r => setTimeout(r, 500));
 
         const data = response.data;
-
-        // Use Gemini to extract structured data from the analysis if missing
-        let extractedData = {
-          email: data.email,
-          phone: data.telefone || data.phone,
-          experienceYears: data.anos_experiencia,
-          skills: data.habilidades || data.skills,
-          strengths: data.pontos_fortes,
-          attentionAreas: data.areas_atencao,
-          role: data.cargo || data.role
-        };
-
-        if (!extractedData.email || !extractedData.phone || !extractedData.experienceYears || !extractedData.skills) {
-          const geminiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY;
-          if (geminiKey) {
-            try {
-              const ai = new GoogleGenAI({ apiKey: geminiKey });
-              
-              const extractionPrompt = `
-                Com base na seguinte análise de currículo, extraia as informações estruturadas em JSON:
-                Análise: ${data.analise}
-                
-                Retorne APENAS o JSON no seguinte formato:
-                {
-                  "email": "string ou null",
-                  "phone": "string ou null",
-                  "experienceYears": "string ou null",
-                  "skills": ["string"],
-                  "strengths": ["string"],
-                  "attentionAreas": ["string"],
-                  "role": "string ou null"
-                }
-              `;
-
-              const result = await ai.models.generateContent({
-                model: "gemini-3-flash-preview",
-                contents: extractionPrompt,
-              });
-              const text = result.text;
-              const jsonMatch = text?.match(/\{[\s\S]*\}/);
-              if (jsonMatch) {
-                const parsed = JSON.parse(jsonMatch[0]);
-                extractedData = {
-                  email: extractedData.email || parsed.email,
-                  phone: extractedData.phone || parsed.phone,
-                  experienceYears: extractedData.experienceYears || parsed.experienceYears,
-                  skills: extractedData.skills || parsed.skills,
-                  strengths: extractedData.strengths || parsed.strengths,
-                  attentionAreas: extractedData.attentionAreas || parsed.attentionAreas,
-                  role: extractedData.role || parsed.role
-                };
-              }
-            } catch (e) {
-              console.error("Erro ao extrair dados com Gemini:", e);
-            }
-          } else {
-            console.warn("Gemini API Key não configurada. Pulando extração avançada.");
-          }
-        }
-
         const result = {
           id: Math.random().toString(36).substr(2, 9),
           name: currentFile.name.replace('.pdf', ''),
@@ -190,13 +127,9 @@ export default function BatchUpload({ apiKey, prompt, setPrompt, onComplete, onV
           analysis: data.analise,
           status: 'Em Análise',
           date: new Date().toISOString(),
-          email: extractedData.email || `${currentFile.name.toLowerCase().replace(/\s+/g, '.').replace('.pdf', '')}@cloud-ops.ai`,
-          phone: extractedData.phone || `+55 (11) 9${Math.floor(1000 + Math.random() * 9000)}-${Math.floor(1000 + Math.random() * 9000)}`,
-          role: extractedData.role || 'Especialista de Sistemas',
-          experienceYears: extractedData.experienceYears,
-          skills: extractedData.skills,
-          strengths: extractedData.strengths,
-          attentionAreas: extractedData.attentionAreas
+          email: `${currentFile.name.toLowerCase().replace(/\s+/g, '.').replace('.pdf', '')}@cloud-ops.ai`,
+          phone: `+55 (11) 9${Math.floor(1000 + Math.random() * 9000)}-${Math.floor(1000 + Math.random() * 9000)}`,
+          role: 'Especialista de Sistemas'
         };
 
         results.push(result);
@@ -204,7 +137,7 @@ export default function BatchUpload({ apiKey, prompt, setPrompt, onComplete, onV
         // Update to Stage 4: Done
         setFiles(prev =>
           prev.map((f, idx) =>
-            idx === i ? { ...f, status: "done", progress: 100, stage: "Análise concluída", result: data, candidate: result } : f
+            idx === i ? { ...f, status: "done", progress: 100, stage: "Análise concluída", result: data } : f
           )
         );
       } catch (err: any) {
@@ -418,10 +351,7 @@ export default function BatchUpload({ apiKey, prompt, setPrompt, onComplete, onV
                             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Score IA:</span>
                             <span className="text-sm font-bold text-primary">{f.result?.pontuacao || '0.0'}</span>
                           </div>
-                          <button 
-                            onClick={() => onViewDetails?.(f.candidate)}
-                            className="text-[10px] font-bold text-secondary uppercase tracking-widest flex items-center gap-1 hover:underline"
-                          >
+                          <button className="text-[10px] font-bold text-secondary uppercase tracking-widest flex items-center gap-1 hover:underline">
                             Ver Detalhes <ChevronRight className="w-3 h-3" />
                           </button>
                         </div>
