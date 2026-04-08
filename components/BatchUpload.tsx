@@ -96,7 +96,7 @@ export default function BatchUpload({ apiKey, prompt, setPrompt, onComplete, onV
         // Update to Stage 2: AI Analysis
         setFiles(prev =>
           prev.map((f, idx) =>
-            idx === i ? { ...f, progress: 50, stage: "Analisando com IA..." } : f
+            idx === i ? { ...f, progress: 40, stage: "Analisando com IA..." } : f
           )
         );
 
@@ -111,16 +111,16 @@ export default function BatchUpload({ apiKey, prompt, setPrompt, onComplete, onV
             params: {
               prompt: prompt,
             },
+            timeout: 60000, // 60 second timeout
           }
         );
 
-        // Update to Stage 3: Score Calculation
+        // Update to Stage 3: Data Extraction
         setFiles(prev =>
           prev.map((f, idx) =>
-            idx === i ? { ...f, progress: 75, stage: "Calculando score..." } : f
+            idx === i ? { ...f, progress: 70, stage: "Extraindo dados estruturados..." } : f
           )
         );
-        await new Promise(r => setTimeout(r, 500));
 
         const data = response.data;
 
@@ -136,45 +136,50 @@ export default function BatchUpload({ apiKey, prompt, setPrompt, onComplete, onV
         };
 
         if (!extractedData.email || !extractedData.phone || !extractedData.experienceYears || !extractedData.skills) {
-          try {
-            const ai = new GoogleGenAI({ apiKey: process.env.NEXT_PUBLIC_GEMINI_API_KEY || apiKey });
-            
-            const extractionPrompt = `
-              Com base na seguinte análise de currículo, extraia as informações estruturadas em JSON:
-              Análise: ${data.analise}
+          const geminiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY;
+          if (geminiKey) {
+            try {
+              const ai = new GoogleGenAI({ apiKey: geminiKey });
               
-              Retorne APENAS o JSON no seguinte formato:
-              {
-                "email": "string ou null",
-                "phone": "string ou null",
-                "experienceYears": "string ou null",
-                "skills": ["string"],
-                "strengths": ["string"],
-                "attentionAreas": ["string"],
-                "role": "string ou null"
-              }
-            `;
+              const extractionPrompt = `
+                Com base na seguinte análise de currículo, extraia as informações estruturadas em JSON:
+                Análise: ${data.analise}
+                
+                Retorne APENAS o JSON no seguinte formato:
+                {
+                  "email": "string ou null",
+                  "phone": "string ou null",
+                  "experienceYears": "string ou null",
+                  "skills": ["string"],
+                  "strengths": ["string"],
+                  "attentionAreas": ["string"],
+                  "role": "string ou null"
+                }
+              `;
 
-            const result = await ai.models.generateContent({
-              model: "gemini-3-flash-preview",
-              contents: extractionPrompt,
-            });
-            const text = result.text;
-            const jsonMatch = text?.match(/\{[\s\S]*\}/);
-            if (jsonMatch) {
-              const parsed = JSON.parse(jsonMatch[0]);
-              extractedData = {
-                email: extractedData.email || parsed.email,
-                phone: extractedData.phone || parsed.phone,
-                experienceYears: extractedData.experienceYears || parsed.experienceYears,
-                skills: extractedData.skills || parsed.skills,
-                strengths: extractedData.strengths || parsed.strengths,
-                attentionAreas: extractedData.attentionAreas || parsed.attentionAreas,
-                role: extractedData.role || parsed.role
-              };
+              const result = await ai.models.generateContent({
+                model: "gemini-3-flash-preview",
+                contents: extractionPrompt,
+              });
+              const text = result.text;
+              const jsonMatch = text?.match(/\{[\s\S]*\}/);
+              if (jsonMatch) {
+                const parsed = JSON.parse(jsonMatch[0]);
+                extractedData = {
+                  email: extractedData.email || parsed.email,
+                  phone: extractedData.phone || parsed.phone,
+                  experienceYears: extractedData.experienceYears || parsed.experienceYears,
+                  skills: extractedData.skills || parsed.skills,
+                  strengths: extractedData.strengths || parsed.strengths,
+                  attentionAreas: extractedData.attentionAreas || parsed.attentionAreas,
+                  role: extractedData.role || parsed.role
+                };
+              }
+            } catch (e) {
+              console.error("Erro ao extrair dados com Gemini:", e);
             }
-          } catch (e) {
-            console.error("Erro ao extrair dados com Gemini:", e);
+          } else {
+            console.warn("Gemini API Key não configurada. Pulando extração avançada.");
           }
         }
 

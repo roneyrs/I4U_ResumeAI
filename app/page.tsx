@@ -143,6 +143,7 @@ export default function Home() {
   }, [results]);
 
   const handleBatchComplete = async (newResults: any[]) => {
+    console.log('Batch processing complete, preparing to save results:', newResults.length);
     const resultsWithJob = newResults.map(r => ({
       name: r.name,
       score: r.score,
@@ -172,26 +173,49 @@ export default function Home() {
       return;
     }
 
-    console.log('Inserting candidates into Supabase:', resultsWithJob.length);
-    const { data, error } = await supabase
-      .from('candidates')
-      .insert(resultsWithJob)
-      .select();
+    try {
+      console.log('Inserting candidates into Supabase:', resultsWithJob.length);
+      const { data, error } = await supabase
+        .from('candidates')
+        .insert(resultsWithJob)
+        .select();
 
-    // Also save the job to the jobs table
-    await supabase
-      .from('jobs')
-      .insert({ title: prompt, description: prompt })
-      .select()
-      .then(({ error: jobError }) => {
-        if (jobError) console.error('Error saving job to Supabase:', jobError);
-        else console.log('Successfully saved job to Supabase');
-      });
+      if (error) {
+        console.error('Supabase insertion error:', error);
+        console.error('Error details:', {
+          message: error.message,
+          details: error.details,
+          hint: error.hint,
+          code: error.code
+        });
+        throw error;
+      }
 
-    if (error) {
-      console.error('Error saving candidates to Supabase:', error);
-      console.error('Error details:', error.details, error.hint, error.message);
-      // Fallback to local state if Supabase fails
+      if (data) {
+        console.log('Successfully saved candidates to Supabase:', data.length);
+        const mappedData = data.map(c => ({
+          ...c,
+          jobDescription: c.job_description,
+          experienceYears: c.experience_years,
+          attentionAreas: c.attention_areas
+        }));
+        setResults(prev => [...mappedData, ...prev]);
+      }
+
+      // Also save the job to the jobs table
+      console.log('Saving job context to Supabase...');
+      const { error: jobError } = await supabase
+        .from('jobs')
+        .insert({ title: prompt, description: prompt })
+        .select();
+
+      if (jobError) {
+        console.error('Error saving job to Supabase:', jobError);
+      } else {
+        console.log('Successfully saved job to Supabase');
+      }
+    } catch (err) {
+      console.error('Failed to save to Supabase, falling back to local state:', err);
       const localResults = resultsWithJob.map((r, i) => ({
         ...r,
         id: `temp-${Date.now()}-${i}`,
@@ -200,15 +224,6 @@ export default function Home() {
         attentionAreas: r.attention_areas
       }));
       setResults(prev => [...localResults, ...prev]);
-    } else if (data) {
-      console.log('Successfully saved candidates to Supabase:', data.length);
-      const mappedData = data.map(c => ({
-        ...c,
-        jobDescription: c.job_description,
-        experienceYears: c.experience_years,
-        attentionAreas: c.attention_areas
-      }));
-      setResults(prev => [...mappedData, ...prev]);
     }
   };
 
