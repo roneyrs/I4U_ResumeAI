@@ -3,11 +3,12 @@
 import React from 'react';
 import { FileText, TrendingUp, Hourglass, Activity, ChevronRight, Zap, Cpu, Search } from 'lucide-react';
 import { motion } from 'motion/react';
+import { Candidate } from './CandidateList';
 
 interface DashboardProps {
-  results?: any[];
+  results?: Candidate[];
   onNavigate?: (tab: string) => void;
-  onViewCandidate?: (candidate: any) => void;
+  onViewCandidate?: (candidate: Candidate) => void;
 }
 
 interface ActivityItem {
@@ -15,7 +16,7 @@ interface ActivityItem {
   desc: string;
   time: string;
   color: string;
-  candidate?: any;
+  candidate?: Candidate;
 }
 
 export default function Dashboard({ results = [], onNavigate, onViewCandidate }: DashboardProps) {
