@@ -40,9 +40,11 @@ export default function Dashboard({ results = [], onNavigate, onViewCandidate }:
     candidate: res
   }));
 
-  const activities: ActivityItem[] = realActivities.length > 0 ? realActivities : [
+  const fallbackActivities: ActivityItem[] = [
     { title: 'Sistema Pronto', desc: 'Aguardando novos currículos para análise.', time: 'Agora', color: 'bg-slate-200' },
   ];
+
+  const activities = realActivities.length > 0 ? realActivities : fallbackActivities;
 
   return (
     <div className="space-y-12">
