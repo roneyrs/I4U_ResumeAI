@@ -3,13 +3,15 @@
 import React from 'react';
 import { FileText, TrendingUp, Hourglass, Activity, ChevronRight, Zap, Cpu, Search } from 'lucide-react';
 import { motion } from 'motion/react';
+import { Candidate } from './CandidateList';
 
-interface DashboardProps {
-  results?: any[];
-  onNavigate?: (tab: string) => void;
-}
+type DashboardProps = {
+  results: Candidate[];
+  onNavigate: React.Dispatch<React.SetStateAction<string>>;
+  onViewCandidate: (c: Candidate) => void;
+};
 
-export default function Dashboard({ results = [], onNavigate }: DashboardProps) {
+export default function Dashboard({ results = [], onNavigate, onViewCandidate }: DashboardProps) {
   const totalProcessed = results.length;
   const averageScore = results.length > 0 
     ? (results.reduce((acc, curr) => acc + curr.score, 0) / results.length).toFixed(1)
@@ -27,11 +29,12 @@ export default function Dashboard({ results = [], onNavigate }: DashboardProps) 
     title: `Análise: ${res.name}`,
     desc: `Score: ${res.score} - ${res.analysis?.substring(0, 60)}...`,
     time: res.date,
-    color: 'bg-primary'
+    color: 'bg-primary',
+    candidate: res
   }));
 
   const activities = realActivities.length > 0 ? realActivities : [
-    { id: 'ready', title: 'Sistema Pronto', desc: 'Aguardando novos currículos para análise.', time: 'Agora', color: 'bg-slate-200' },
+    { id: 'ready', title: 'Sistema Pronto', desc: 'Aguardando novos currículos para análise.', time: 'Agora', color: 'bg-slate-200', candidate: null },
   ];
 
   return (
@@ -80,7 +83,11 @@ export default function Dashboard({ results = [], onNavigate }: DashboardProps) 
           </div>
           <div className="space-y-8">
             {activities.map((act) => (
-              <div key={act.id} className="flex gap-6 group cursor-pointer">
+              <div 
+                key={act.id} 
+                className={`flex gap-6 group ${act.candidate ? 'cursor-pointer' : 'cursor-default'}`}
+                onClick={() => act.candidate && onViewCandidate(act.candidate)}
+              >
                 <div className={`w-1.5 h-12 ${act.color} rounded-full shrink-0 group-hover:scale-y-110 transition-all`}></div>
                 <div className="flex-1">
                   <div className="flex justify-between items-start mb-1">
@@ -108,7 +115,7 @@ export default function Dashboard({ results = [], onNavigate }: DashboardProps) 
           </div>
 
           <button 
-            onClick={() => onNavigate?.('candidates')}
+            onClick={() => onNavigate('candidates')}
             className="w-full py-5 bg-primary text-white rounded-2xl font-bold shadow-xl shadow-primary/20 hover:brightness-110 active:scale-95 transition-all flex items-center justify-center gap-3 mt-12"
           >
             Acessar Triagem
