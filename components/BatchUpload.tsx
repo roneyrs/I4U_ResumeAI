@@ -22,8 +22,9 @@ import { motion, AnimatePresence } from 'motion/react';
 interface BatchUploadProps {
   apiKey: string;
   prompt: string;
-  setPrompt: (prompt: string) => void;
+  setPrompt: React.Dispatch<React.SetStateAction<string>>;
   onComplete: (results: any[]) => void;
+  onViewDetails?: (candidate: any) => void;
 }
 
 interface ProcessingFile {
@@ -35,7 +36,7 @@ interface ProcessingFile {
   error?: string;
 }
 
-export default function BatchUpload({ apiKey, prompt, setPrompt, onComplete }: BatchUploadProps) {
+export default function BatchUpload({ apiKey, prompt, setPrompt, onComplete, onViewDetails }: BatchUploadProps) {
   const [files, setFiles] = React.useState<ProcessingFile[]>([]);
   const [isProcessing, setIsProcessing] = React.useState(false);
   const [processMode, setProcessMode] = React.useState<'individual' | 'batch'>('batch');
@@ -426,7 +427,10 @@ export default function BatchUpload({ apiKey, prompt, setPrompt, onComplete }: B
                             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Score IA:</span>
                             <span className="text-sm font-bold text-primary">{f.result?.pontuacao || '0.0'}</span>
                           </div>
-                          <button className="text-[10px] font-bold text-secondary uppercase tracking-widest flex items-center gap-1 hover:underline">
+                          <button 
+                            onClick={() => onViewDetails?.(f.result)}
+                            className="text-[10px] font-bold text-secondary uppercase tracking-widest flex items-center gap-1 hover:underline"
+                          >
                             Ver Detalhes <ChevronRight className="w-3 h-3" />
                           </button>
                         </div>
