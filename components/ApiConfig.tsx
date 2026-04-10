@@ -34,13 +34,14 @@ export default function ApiConfig({ apiKey, onApiKeyChange }: ApiConfigProps) {
       // Usamos um prompt simples e um corpo vazio ou mínimo se a API permitir
       // Se a API retornar 401/403, a chave é inválida.
       // Se retornar 400 (Bad Request), a chave provavelmente é válida mas o corpo está vazio.
-      const url = "https://api.i4uai.com/resume/analisar_curriculo?prompt=test_connection";
+      const url = "/api/analyze?prompt=test_connection";
       
       await axios.post(url, null, {
         headers: {
-          "x-api-key": apiKey,
+          "x-api-key": apiKey.trim(),
           "Content-Type": "application/octet-stream"
-        }
+        },
+        timeout: 30000 // 30 seconds timeout
       });
 
       // Se chegar aqui sem erro (improvável com body null, mas possível dependendo da API)

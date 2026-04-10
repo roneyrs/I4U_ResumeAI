@@ -20,6 +20,13 @@ export default function Home() {
   const [viewingCandidate, setViewingCandidate] = React.useState<Candidate | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = React.useState(false);
   const [supabaseStatus, setSupabaseStatus] = React.useState<'connected' | 'disconnected' | 'not-configured'>('not-configured');
+  const [missingColumns, setMissingColumns] = React.useState<string[]>([]);
+  const missingColumnsRef = React.useRef<string[]>([]);
+
+  // Update ref whenever state changes
+  React.useEffect(() => {
+    missingColumnsRef.current = missingColumns;
+  }, [missingColumns]);
 
   const tableContainerRef = React.useRef<HTMLDivElement>(null);
   const topScrollRef = React.useRef<HTMLDivElement>(null);
@@ -96,7 +103,12 @@ export default function Home() {
         // Map database fields to Candidate interface if necessary
         const mappedData = data.map(c => ({
           ...c,
-          jobDescription: c.job_description // Map snake_case to camelCase
+          jobDescription: c.job_description, // Map snake_case to camelCase
+          experienceYears: c.experience_years,
+          attentionAreas: c.attention_areas || [],
+          skills: c.skills || [],
+          strengths: c.strengths || [],
+          tags: c.tags || [],
         }));
         setResults(mappedData);
       }
@@ -104,20 +116,47 @@ export default function Home() {
 
     fetchCandidates();
 
-    // Test connection
+    // Test connection and check schema
     const testConnection = async () => {
       if (!supabase) {
         setSupabaseStatus('not-configured');
         return;
       }
       try {
-        const { error } = await supabase.from('candidates').select('id').limit(1);
-        if (error) {
-          console.error('Supabase connection test failed:', error.message);
-          setSupabaseStatus('disconnected');
+        console.log('Testing Supabase connection and schema...');
+        // Check for specific columns that might be missing
+        const requiredColumns = ['attention_areas', 'tags', 'experience_years', 'job_description', 'skills', 'strengths'];
+        const missing: string[] = [];
+
+        for (const col of requiredColumns) {
+          try {
+            const { error } = await supabase.from('candidates').select(col).limit(0);
+            if (error) {
+              console.log(`Check for column "${col}" returned error:`, error.code, error.message);
+              if (error.code === 'PGRST204' || error.message?.includes('column') || error.message?.includes('not found')) {
+                missing.push(col);
+              }
+            }
+          } catch (e) {
+            console.error(`Exception checking column "${col}":`, e);
+            missing.push(col);
+          }
+        }
+
+        if (missing.length > 0) {
+          console.warn('Missing columns detected in Supabase:', missing);
+          setMissingColumns(missing);
+          setSupabaseStatus('connected'); // Still connected, but with schema issues
         } else {
-          console.log('Supabase connection test successful');
-          setSupabaseStatus('connected');
+          const { error } = await supabase.from('candidates').select('id').limit(1);
+          if (error) {
+            console.error('Supabase connection test failed:', error.message);
+            setSupabaseStatus('disconnected');
+          } else {
+            console.log('Supabase connection test successful');
+            setSupabaseStatus('connected');
+            setMissingColumns([]);
+          }
         }
       } catch (err) {
         console.error('Supabase connection test exception:', err);
@@ -137,66 +176,133 @@ export default function Home() {
   }, [prompt]);
 
   React.useEffect(() => {
-    if (results.length > 0) localStorage.setItem('i4u_results', JSON.stringify(results));
+    localStorage.setItem('i4u_results', JSON.stringify(results));
   }, [results]);
 
   const handleBatchComplete = async (newResults: any[]) => {
-    const resultsWithJob = newResults.map(r => ({
+    console.log('Batch processing complete, preparing to save results:', newResults.length);
+    
+    // Prepare full data for local state
+    const allData = newResults.map(r => ({
       name: r.name,
-      score: r.score,
+      score: Math.min(99.99, r.score || 0),
       status: 'Em Análise',
       date: r.date,
       analysis: r.analysis,
       email: r.email,
       phone: r.phone,
       role: r.role,
+      skills: r.skills || [],
+      strengths: r.strengths || [],
+      experience_years: r.experienceYears,
+      attention_areas: r.attentionAreas || [],
+      tags: r.tags || [],
       job_description: prompt
     }));
 
+    const getSupabaseData = (data: any[], missing: string[]) => {
+      return data.map(item => {
+        const filtered = { ...item };
+        missing.forEach(col => delete filtered[col]);
+        return filtered;
+      });
+    };
+
+    let currentMissing = [...missingColumnsRef.current];
+    let resultsForSupabase = getSupabaseData(allData, currentMissing);
+
+    console.log('Final object to insert into Supabase:', JSON.stringify(resultsForSupabase, null, 2));
+
     if (!supabase) {
       console.warn('Supabase not configured. Saving to local state only.');
-      const localResults = resultsWithJob.map((r, i) => ({
+      const localResults = allData.map((r, i) => ({
         ...r,
         id: `temp-${Date.now()}-${i}`,
-        jobDescription: r.job_description
+        jobDescription: r.job_description,
+        experienceYears: r.experience_years,
+        attentionAreas: r.attention_areas
       }));
       setResults(prev => [...localResults, ...prev]);
       return;
     }
 
-    console.log('Inserting candidates into Supabase:', resultsWithJob.length);
-    const { data, error } = await supabase
-      .from('candidates')
-      .insert(resultsWithJob)
-      .select();
+    try {
+      console.log('Inserting candidates into Supabase:', resultsForSupabase.length);
+      let data, error;
+      let attempts = 0;
+      const maxAttempts = 5;
 
-    // Also save the job to the jobs table
-    await supabase
-      .from('jobs')
-      .insert({ title: prompt, description: prompt })
-      .select()
-      .then(({ error: jobError }) => {
-        if (jobError) console.error('Error saving job to Supabase:', jobError);
-        else console.log('Successfully saved job to Supabase');
-      });
+      while (attempts < maxAttempts) {
+        const result = await supabase
+          .from('candidates')
+          .insert(resultsForSupabase)
+          .select();
+        
+        data = result.data;
+        error = result.error;
 
-    if (error) {
-      console.error('Error saving candidates to Supabase:', error);
-      console.error('Error details:', error.details, error.hint, error.message);
-      // Fallback to local state if Supabase fails
-      const localResults = resultsWithJob.map((r, i) => ({
+        if (error && error.code === 'PGRST204') {
+          console.warn(`Insertion attempt ${attempts + 1} failed due to missing column. Attempting to identify and retry...`);
+          const match = error.message.match(/column '([^']+)'/);
+          const missingCol = match ? match[1] : null;
+          
+          if (missingCol && !currentMissing.includes(missingCol)) {
+            console.log(`Identified missing column: ${missingCol}. Retrying without it.`);
+            currentMissing.push(missingCol);
+            // Update both state and ref
+            setMissingColumns(prev => {
+              const next = [...new Set([...prev, missingCol])];
+              missingColumnsRef.current = next;
+              return next;
+            });
+            
+            resultsForSupabase = getSupabaseData(allData, currentMissing);
+            attempts++;
+            continue;
+          }
+        }
+        break;
+      }
+
+      if (error) {
+        const errorMsg = `Supabase insertion error: ${error.message} (Code: ${error.code})`;
+        console.error(errorMsg, {
+          details: error.details,
+          hint: error.hint
+        });
+        throw new Error(errorMsg);
+      }
+
+      if (data) {
+        console.log('Successfully saved candidates to Supabase:', data.length);
+        const mappedData = data.map(c => ({
+          ...c,
+          jobDescription: c.job_description,
+          experienceYears: c.experience_years,
+          attentionAreas: c.attention_areas || [],
+          skills: c.skills || [],
+          strengths: c.strengths || [],
+          tags: c.tags || []
+        }));
+        setResults(prev => [...mappedData, ...prev]);
+      }
+
+      // Also save the job to the jobs table
+      console.log('Saving job context to Supabase...');
+      await supabase
+        .from('jobs')
+        .insert({ title: prompt, description: prompt });
+        
+    } catch (err) {
+      console.error('Failed to save to Supabase, falling back to local state:', err);
+      const localResults = allData.map((r, i) => ({
         ...r,
         id: `temp-${Date.now()}-${i}`,
-        jobDescription: r.job_description
+        jobDescription: r.job_description,
+        experienceYears: r.experience_years,
+        attentionAreas: r.attention_areas
       }));
       setResults(prev => [...localResults, ...prev]);
-    } else if (data) {
-      console.log('Successfully saved candidates to Supabase:', data.length);
-      const mappedData = data.map(c => ({
-        ...c,
-        jobDescription: c.job_description
-      }));
-      setResults(prev => [...mappedData, ...prev]);
     }
   };
 
@@ -221,7 +327,10 @@ export default function Home() {
   };
 
   const handleUpdateStatus = async (id: string, newStatus: string) => {
-    if (!supabase) {
+    console.log(`Updating status for candidate ${id} to ${newStatus}`);
+    
+    if (!supabase || id.startsWith('temp-')) {
+      console.log('Updating local state only (no Supabase or temporary ID)');
       setResults(prev => prev.map(c => c.id === id ? { ...c, status: newStatus } : c));
       return;
     }
@@ -233,8 +342,45 @@ export default function Home() {
 
     if (error) {
       console.error('Error updating status in Supabase:', error);
-    } else {
+      // Still update local state so UI is responsive
       setResults(prev => prev.map(c => c.id === id ? { ...c, status: newStatus } : c));
+    } else {
+      console.log('Successfully updated status in Supabase');
+      setResults(prev => prev.map(c => c.id === id ? { ...c, status: newStatus } : c));
+    }
+  };
+
+  const handleUpdateTags = async (id: string, newTags: string[]) => {
+    console.log(`Updating tags for candidate ${id} to`, newTags);
+    
+    if (!supabase || id.startsWith('temp-')) {
+      console.log('Updating local state only (no Supabase or temporary ID)');
+      setResults(prev => prev.map(c => c.id === id ? { ...c, tags: newTags } : c));
+      
+      // Update viewing candidate if it's the one being updated
+      if (viewingCandidate?.id === id) {
+        setViewingCandidate({ ...viewingCandidate, tags: newTags });
+      }
+      return;
+    }
+
+    const { error } = await supabase
+      .from('candidates')
+      .update({ tags: newTags })
+      .eq('id', id);
+
+    if (error) {
+      console.error('Error updating tags in Supabase:', error);
+      // Still update local state so UI is responsive
+      setResults(prev => prev.map(c => c.id === id ? { ...c, tags: newTags } : c));
+    } else {
+      console.log('Successfully updated tags in Supabase');
+      setResults(prev => prev.map(c => c.id === id ? { ...c, tags: newTags } : c));
+      
+      // Update viewing candidate if it's the one being updated
+      if (viewingCandidate?.id === id) {
+        setViewingCandidate({ ...viewingCandidate, tags: newTags });
+      }
     }
   };
 
@@ -262,14 +408,14 @@ export default function Home() {
           ref={topScrollRef}
           className="fixed top-20 left-0 lg:left-64 right-0 z-40 overflow-x-auto h-2 bg-white/80 backdrop-blur-sm border-b border-slate-100"
         >
-          <div style={{ width: '1400px', height: '1px' }}></div>
+          <div className="w-[1400px] xl:w-full h-1"></div>
         </div>
 
         <div 
           ref={tableContainerRef} 
           className="flex-1 overflow-x-auto pt-24"
         >
-          <div className="px-4 md:px-10 pb-12 min-w-[1400px] w-full flex-1">
+          <div className="px-4 md:px-10 pb-12 w-full flex-1">
             <AnimatePresence mode="wait">
               <motion.div
                 key={activeTab}
@@ -280,7 +426,11 @@ export default function Home() {
               >
                 {activeTab === 'dashboard' && (
                   <div className="max-w-5xl">
-                    <Dashboard results={results} onNavigate={setActiveTab} />
+                    <Dashboard 
+                      results={results} 
+                      onNavigate={setActiveTab} 
+                      onViewCandidate={(c) => setViewingCandidate(c)}
+                    />
                   </div>
                 )}
 
@@ -291,18 +441,8 @@ export default function Home() {
                       onViewProfile={(c) => setViewingCandidate(c)}
                       onDelete={handleDeleteCandidate}
                       onUpdateStatus={handleUpdateStatus}
+                      onUpdateTags={handleUpdateTags}
                     />
-                    
-                    <AnimatePresence>
-                      {viewingCandidate && (
-                        <CandidateProfile 
-                          candidate={viewingCandidate} 
-                          onClose={() => setViewingCandidate(null)} 
-                          onDelete={handleDeleteCandidate}
-                          onUpdateStatus={handleUpdateStatus}
-                        />
-                      )}
-                    </AnimatePresence>
                   </div>
                 )}
 
@@ -317,6 +457,7 @@ export default function Home() {
                       prompt={prompt}
                       setPrompt={setPrompt}
                       onComplete={handleBatchComplete} 
+                      onViewDetails={(c) => setViewingCandidate(c)}
                     />
                   </div>
                 )}
@@ -337,6 +478,18 @@ export default function Home() {
                   </div>
                 )}
               </motion.div>
+            </AnimatePresence>
+
+            <AnimatePresence>
+              {viewingCandidate && (
+                <CandidateProfile 
+                  candidate={viewingCandidate} 
+                  onClose={() => setViewingCandidate(null)} 
+                  onDelete={handleDeleteCandidate}
+                  onUpdateStatus={handleUpdateStatus}
+                  onUpdateTags={handleUpdateTags}
+                />
+              )}
             </AnimatePresence>
           </div>
 

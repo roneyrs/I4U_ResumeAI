@@ -22,7 +22,8 @@ export default function Dashboard({ results = [], onNavigate }: DashboardProps) 
   ];
 
   // Generate real activities from results
-  const realActivities = results.slice(0, 3).map(res => ({
+  const realActivities = results.slice(0, 3).map((res, idx) => ({
+    id: res.id || `activity-${idx}`,
     title: `Análise: ${res.name}`,
     desc: `Score: ${res.score} - ${res.analysis?.substring(0, 60)}...`,
     time: res.date,
@@ -30,7 +31,7 @@ export default function Dashboard({ results = [], onNavigate }: DashboardProps) 
   }));
 
   const activities = realActivities.length > 0 ? realActivities : [
-    { title: 'Sistema Pronto', desc: 'Aguardando novos currículos para análise.', time: 'Agora', color: 'bg-slate-200' },
+    { id: 'ready', title: 'Sistema Pronto', desc: 'Aguardando novos currículos para análise.', time: 'Agora', color: 'bg-slate-200' },
   ];
 
   return (
@@ -79,7 +80,7 @@ export default function Dashboard({ results = [], onNavigate }: DashboardProps) 
           </div>
           <div className="space-y-8">
             {activities.map((act) => (
-              <div key={act.title} className="flex gap-6 group cursor-pointer">
+              <div key={act.id} className="flex gap-6 group cursor-pointer">
                 <div className={`w-1.5 h-12 ${act.color} rounded-full shrink-0 group-hover:scale-y-110 transition-all`}></div>
                 <div className="flex-1">
                   <div className="flex justify-between items-start mb-1">

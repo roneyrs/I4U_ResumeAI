@@ -9,6 +9,10 @@ CREATE TABLE IF NOT EXISTS candidates (
   email TEXT,
   phone TEXT,
   role TEXT,
+  experience_years TEXT,
+  skills TEXT[],
+  strengths TEXT[],
+  attention_areas TEXT[],
   job_description TEXT,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );

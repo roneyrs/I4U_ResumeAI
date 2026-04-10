@@ -20,7 +20,7 @@ export default function TopBar({ apiKey, supabaseStatus, onMenuClick }: TopBarPr
           <Menu className="w-6 h-6" />
         </button>
         
-        <div className="relative hidden md:block w-64 lg:w-96">
+        <div className="relative hidden xl:block w-96">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
           <input
             type="text"
@@ -28,9 +28,9 @@ export default function TopBar({ apiKey, supabaseStatus, onMenuClick }: TopBarPr
             className="w-full bg-slate-50 border-none rounded-lg py-2 pl-10 pr-4 text-sm focus:ring-2 focus:ring-primary/20 placeholder:text-slate-400 transition-all"
           />
         </div>
-        <nav className="flex items-center gap-6 font-medium text-sm">
-          <a href="#" className="text-slate-500 hover:text-primary transition-all">Recrutamento Direto</a>
-          <a href="#" className="text-slate-500 hover:text-primary transition-all">Banco de Talentos</a>
+        <nav className="hidden md:flex items-center gap-6 font-medium text-sm">
+          <a href="#" className="text-slate-500 hover:text-primary transition-all whitespace-nowrap">Recrutamento Direto</a>
+          <a href="#" className="text-slate-500 hover:text-primary transition-all whitespace-nowrap">Banco de Talentos</a>
         </nav>
       </div>
 

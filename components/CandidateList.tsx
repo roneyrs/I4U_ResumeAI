@@ -11,10 +11,13 @@ import {
   UserPlus, 
   Download, 
   Zap, 
+  Trash2,
   Folder, 
   ChevronLeft, 
   ChevronRight, 
-  TrendingUp 
+  TrendingUp,
+  X,
+  Plus
 } from 'lucide-react';
 import { motion } from 'motion/react';
 
@@ -32,6 +35,12 @@ export interface Candidate {
   phone?: string;
   role?: string;
   jobDescription?: string;
+  experienceYears?: string;
+  skills?: string[];
+  attentionAreas?: string[];
+  strengths?: string[];
+  tags?: string[];
+  evaluationScores?: { label: string; score: number }[];
 }
 
 interface CandidateListProps {
@@ -39,21 +48,69 @@ interface CandidateListProps {
   onViewProfile?: (candidate: Candidate) => void;
   onDelete?: (id: string) => void;
   onUpdateStatus?: (id: string, status: string) => void;
+  onUpdateTags?: (id: string, tags: string[]) => void;
 }
 
-export default function CandidateList({ candidates, onViewProfile, onDelete, onUpdateStatus }: CandidateListProps) {
+export default function CandidateList({ candidates, onViewProfile, onDelete, onUpdateStatus, onUpdateTags }: CandidateListProps) {
   const [searchTerm, setSearchTerm] = React.useState('');
   const [jobFilter, setJobFilter] = React.useState('');
+  const [tagFilter, setTagFilter] = React.useState('Todas');
   const [scoreLimit, setScoreLimit] = React.useState(0.0);
   const [selectedIds, setSelectedIds] = React.useState<Set<string>>(new Set());
   const [exportType, setExportType] = React.useState<'analysis' | 'cv'>('analysis');
+  const [confirmingId, setConfirmingId] = React.useState<string | null>(null);
+  const [currentPage, setCurrentPage] = React.useState(1);
+  const [newTagInput, setNewTagInput] = React.useState<{ [key: string]: string }>({});
+  const itemsPerPage = 10;
+
+  // Extract all unique tags for the filter
+  const allTags = React.useMemo(() => {
+    const tags = new Set<string>();
+    candidates.forEach(c => {
+      c.tags?.forEach(t => tags.add(t));
+    });
+    return Array.from(tags).sort();
+  }, [candidates]);
 
   const filteredCandidates = candidates.filter(c => 
     (c.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     c.status.toLowerCase().includes(searchTerm.toLowerCase())) &&
     (c.jobDescription?.toLowerCase().includes(jobFilter.toLowerCase()) || !jobFilter) &&
+    (tagFilter === 'Todas' || c.tags?.includes(tagFilter)) &&
     c.score >= scoreLimit
   );
+
+  const handleAddTag = (id: string) => {
+    const tag = newTagInput[id]?.trim();
+    if (!tag) return;
+
+    const candidate = candidates.find(c => c.id === id);
+    if (!candidate) return;
+
+    const currentTags = candidate.tags || [];
+    if (!currentTags.includes(tag)) {
+      onUpdateTags?.(id, [...currentTags, tag]);
+    }
+    
+    setNewTagInput(prev => ({ ...prev, [id]: '' }));
+  };
+
+  const handleRemoveTag = (id: string, tagToRemove: string) => {
+    const candidate = candidates.find(c => c.id === id);
+    if (!candidate) return;
+
+    const currentTags = candidate.tags || [];
+    onUpdateTags?.(id, currentTags.filter(t => t !== tagToRemove));
+  };
+
+  const totalPages = Math.ceil(filteredCandidates.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const paginatedCandidates = filteredCandidates.slice(startIndex, startIndex + itemsPerPage);
+
+  // Reset to page 1 when filters change
+  React.useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, jobFilter, scoreLimit]);
 
   const toggleSelect = (id: string) => {
     const newSelected = new Set(selectedIds);
@@ -174,8 +231,8 @@ Este arquivo contém os dados estruturados extraídos do documento original.]
       </div>
 
       {/* Filters Section */}
-      <div className="grid grid-cols-12 gap-6">
-        <div className="col-span-12 lg:col-span-4 bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
+      <div className="grid grid-cols-12 gap-4 sm:gap-6 mb-8">
+        <div className="col-span-12 sm:col-span-6 lg:col-span-3 bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
           <div className="flex items-center justify-between mb-6">
             <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Limite de Score Neural</label>
             <span className="px-3 py-1 bg-primary/10 text-primary rounded-lg font-bold text-sm">{scoreLimit.toFixed(1)}+</span>
@@ -191,7 +248,7 @@ Este arquivo contém os dados estruturados extraídos do documento original.]
           />
         </div>
 
-        <div className="col-span-12 lg:col-span-4 bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
+        <div className="col-span-12 sm:col-span-6 lg:col-span-4 bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
           <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-4">Buscar Candidato</label>
           <div className="relative">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
@@ -205,7 +262,7 @@ Este arquivo contém os dados estruturados extraídos do documento original.]
           </div>
         </div>
 
-        <div className="col-span-12 lg:col-span-4 bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
+        <div className="col-span-12 sm:col-span-6 lg:col-span-3 bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
           <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-4">Descrição da Vaga</label>
           <div className="relative">
             <Filter className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
@@ -218,12 +275,26 @@ Este arquivo contém os dados estruturados extraídos do documento original.]
             />
           </div>
         </div>
+
+        <div className="col-span-12 sm:col-span-6 lg:col-span-2 bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
+          <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-4">Filtrar por Tag</label>
+          <select 
+            value={tagFilter}
+            onChange={(e) => setTagFilter(e.target.value)}
+            className="w-full px-4 py-3 bg-slate-50 border-none rounded-xl text-sm font-bold text-slate-700 focus:ring-2 focus:ring-primary/20 cursor-pointer"
+          >
+            <option value="Todas">Todas as Tags</option>
+            {allTags.map(tag => (
+              <option key={tag} value={tag}>{tag}</option>
+            ))}
+          </select>
+        </div>
       </div>
 
       {/* Table Section */}
       <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
+        <div className="overflow-x-auto custom-scrollbar">
+          <table className="w-full min-w-[1000px] text-left border-collapse">
             <thead>
               <tr className="bg-slate-50/50">
                 <th className="px-8 py-5 text-left">
@@ -237,6 +308,7 @@ Este arquivo contém os dados estruturados extraídos do documento original.]
                 <th className="px-8 py-5 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Candidato</th>
                 <th className="px-8 py-5 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Identidade de Contato</th>
                 <th className="px-8 py-5 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Fase de Processamento</th>
+                <th className="px-8 py-5 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Tags</th>
                 <th className="px-8 py-5 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-center">Score Neural</th>
                 <th className="px-8 py-5 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-right">Ações</th>
               </tr>
@@ -249,7 +321,7 @@ Este arquivo contém os dados estruturados extraídos do documento original.]
                   </td>
                 </tr>
               ) : (
-                filteredCandidates.map((c) => (
+                paginatedCandidates.map((c) => (
                   <tr key={c.id} className="hover:bg-slate-50/50 transition-all group">
                     <td className="px-8 py-6">
                       <input 
@@ -277,8 +349,12 @@ Este arquivo contém os dados estruturados extraídos do documento original.]
                     </td>
                     <td className="px-8 py-6">
                       <div className="space-y-0.5">
-                        <p className="text-sm font-medium text-slate-700">{c.email || 's.jenning@cloud-ops.ai'}</p>
-                        <p className="text-xs text-slate-400">{c.phone || '+1 (555) 092-8831'}</p>
+                        <p className="text-sm font-medium text-slate-700">
+                          {c.email && c.email !== 'Não identificado' ? c.email : <span className="text-slate-300 italic">E-mail não encontrado</span>}
+                        </p>
+                        <p className="text-xs text-slate-400">
+                          {c.phone && c.phone !== 'Não identificado' ? c.phone : <span className="text-slate-300 italic">Telefone não encontrado</span>}
+                        </p>
                       </div>
                     </td>
                     <td className="px-8 py-6">
@@ -297,6 +373,40 @@ Este arquivo contém os dados estruturados extraídos do documento original.]
                       </select>
                     </td>
                     <td className="px-8 py-6">
+                      <div className="flex flex-wrap gap-2 max-w-[150px] sm:max-w-[200px]">
+                        {c.tags?.map(tag => (
+                          <span 
+                            key={tag} 
+                            className="px-2 py-0.5 bg-primary/10 text-primary text-[10px] font-bold rounded-md flex items-center gap-1 group/tag"
+                          >
+                            {tag}
+                            <button 
+                              onClick={() => handleRemoveTag(c.id, tag)}
+                              className="hover:text-red-500 transition-colors"
+                            >
+                              <X className="w-3 h-3" />
+                            </button>
+                          </span>
+                        ))}
+                        <div className="flex items-center gap-1">
+                          <input 
+                            type="text"
+                            placeholder="Add tag..."
+                            value={newTagInput[c.id] || ''}
+                            onChange={(e) => setNewTagInput(prev => ({ ...prev, [c.id]: e.target.value }))}
+                            onKeyDown={(e) => e.key === 'Enter' && handleAddTag(c.id)}
+                            className="w-20 px-2 py-0.5 bg-slate-50 border border-slate-200 rounded-md text-[10px] outline-none focus:border-primary"
+                          />
+                          <button 
+                            onClick={() => handleAddTag(c.id)}
+                            className="p-1 bg-slate-100 hover:bg-primary hover:text-white rounded-md transition-all"
+                          >
+                            <Plus className="w-3 h-3" />
+                          </button>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-8 py-6">
                       <div className="flex justify-center">
                         <div className="w-12 h-12 rounded-xl bg-primary/5 border border-primary/10 flex items-center justify-center">
                           <span className="text-lg font-bold text-primary">{c.score.toFixed(1)}</span>
@@ -313,11 +423,23 @@ Este arquivo contém os dados estruturados extraídos do documento original.]
                           <Eye className="w-4 h-4" />
                         </button>
                         <button 
-                          onClick={() => onDelete?.(c.id)}
-                          className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
-                          title="Excluir"
+                          onClick={() => {
+                            if (confirmingId === c.id) {
+                              onDelete?.(c.id);
+                              setConfirmingId(null);
+                            } else {
+                              setConfirmingId(c.id);
+                              setTimeout(() => setConfirmingId(null), 3000);
+                            }
+                          }}
+                          className={`p-2 rounded-lg transition-all ${
+                            confirmingId === c.id 
+                              ? 'text-white bg-red-600 animate-pulse' 
+                              : 'text-slate-400 hover:text-red-500 hover:bg-red-50'
+                          }`}
+                          title={confirmingId === c.id ? 'Confirmar?' : 'Excluir'}
                         >
-                          <MoreVertical className="w-4 h-4" />
+                          <Trash2 className="w-4 h-4" />
                         </button>
                       </div>
                     </td>
@@ -330,17 +452,52 @@ Este arquivo contém os dados estruturados extraídos do documento original.]
         
         {/* Pagination */}
         <div className="p-6 border-t border-slate-50 flex items-center justify-between bg-white">
-          <p className="text-xs font-bold text-slate-400">Mostrando <span className="text-slate-900">25</span> de 1.284 candidatos</p>
+          <p className="text-xs font-bold text-slate-400">
+            Mostrando <span className="text-slate-900">{filteredCandidates.length > 0 ? startIndex + 1 : 0}</span> a <span className="text-slate-900">{Math.min(startIndex + itemsPerPage, filteredCandidates.length)}</span> de <span className="text-slate-900">{filteredCandidates.length}</span> candidatos
+          </p>
           <div className="flex items-center gap-2">
-            <button className="p-2 text-slate-400 hover:bg-slate-50 rounded-lg transition-all">
+            <button 
+              onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+              disabled={currentPage === 1}
+              className="p-2 text-slate-400 hover:bg-slate-50 rounded-lg transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+            >
               <ChevronLeft className="w-4 h-4" />
             </button>
-            <button className="w-8 h-8 bg-primary text-white rounded-lg text-xs font-bold">1</button>
-            <button className="w-8 h-8 hover:bg-slate-50 text-slate-600 rounded-lg text-xs font-bold">2</button>
-            <button className="w-8 h-8 hover:bg-slate-50 text-slate-600 rounded-lg text-xs font-bold">3</button>
-            <span className="text-slate-400 mx-1">...</span>
-            <button className="w-8 h-8 hover:bg-slate-50 text-slate-600 rounded-lg text-xs font-bold">52</button>
-            <button className="p-2 text-slate-400 hover:bg-slate-50 rounded-lg transition-all">
+            
+            {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => {
+              // Simple pagination logic: show first, last, and current +/- 1
+              if (
+                page === 1 || 
+                page === totalPages || 
+                (page >= currentPage - 1 && page <= currentPage + 1)
+              ) {
+                return (
+                  <button 
+                    key={page}
+                    onClick={() => setCurrentPage(page)}
+                    className={`w-8 h-8 rounded-lg text-xs font-bold transition-all ${
+                      currentPage === page 
+                        ? 'bg-primary text-white shadow-lg shadow-primary/20' 
+                        : 'hover:bg-slate-50 text-slate-600'
+                    }`}
+                  >
+                    {page}
+                  </button>
+                );
+              } else if (
+                (page === 2 && currentPage > 3) || 
+                (page === totalPages - 1 && currentPage < totalPages - 2)
+              ) {
+                return <span key={page} className="text-slate-400 mx-1">...</span>;
+              }
+              return null;
+            })}
+
+            <button 
+              onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+              disabled={currentPage === totalPages || totalPages === 0}
+              className="p-2 text-slate-400 hover:bg-slate-50 rounded-lg transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+            >
               <ChevronRight className="w-4 h-4" />
             </button>
           </div>

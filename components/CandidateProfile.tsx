@@ -14,7 +14,9 @@ import {
   ExternalLink,
   Download,
   Share2,
-  MoreHorizontal
+  Trash2,
+  MoreHorizontal,
+  Plus
 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { Candidate } from './CandidateList';
@@ -24,21 +26,37 @@ interface CandidateProfileProps {
   onClose: () => void;
   onDelete?: (id: string) => void;
   onUpdateStatus?: (id: string, status: string) => void;
+  onUpdateTags?: (id: string, tags: string[]) => void;
 }
 
-export default function CandidateProfile({ candidate, onClose, onDelete, onUpdateStatus }: CandidateProfileProps) {
-  // Mock scores for the evaluation core
-  const evaluationScores = [
-    { label: 'Proficiência Técnica', score: 10.0 },
-    { label: 'Design de Sistemas', score: 9.5 },
-    { label: 'Habilidades de Liderança', score: 9.0 },
-    { label: 'Fit Cultural', score: 9.0 },
+export default function CandidateProfile({ candidate, onClose, onDelete, onUpdateStatus, onUpdateTags }: CandidateProfileProps) {
+  const [isConfirmingDelete, setIsConfirmingDelete] = React.useState(false);
+  const [newTagInput, setNewTagInput] = React.useState('');
+
+  const handleAddTag = () => {
+    const tag = newTagInput.trim();
+    if (!tag) return;
+
+    const currentTags = candidate.tags || [];
+    if (!currentTags.includes(tag)) {
+      onUpdateTags?.(candidate.id, [...currentTags, tag]);
+    }
+    setNewTagInput('');
+  };
+
+  const handleRemoveTag = (tagToRemove: string) => {
+    const currentTags = candidate.tags || [];
+    onUpdateTags?.(candidate.id, currentTags.filter(t => t !== tagToRemove));
+  };
+
+  const evaluationScores = candidate.evaluationScores || [
+    { label: 'Proficiência Técnica', score: candidate.score || 0 },
+    { label: 'Design de Sistemas', score: (candidate.score * 0.95) || 0 },
+    { label: 'Habilidades de Liderança', score: (candidate.score * 0.9) || 0 },
+    { label: 'Fit Cultural', score: (candidate.score * 0.85) || 0 },
   ];
 
-  const skills = [
-    'Kubernetes & Docker', 'Go / Golang', 'Kafka / RabbitMQ', 
-    'AWS (Solutions Arch)', 'Microservices Pattern'
-  ];
+  const skills = candidate.skills && candidate.skills.length > 0 ? candidate.skills : [];
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end">
@@ -57,7 +75,7 @@ export default function CandidateProfile({ candidate, onClose, onDelete, onUpdat
         animate={{ x: 0 }}
         exit={{ x: '100%' }}
         transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-        className="relative w-full max-w-3xl bg-slate-50 shadow-2xl flex flex-col h-full overflow-hidden"
+        className="relative w-full md:max-w-2xl lg:max-w-3xl bg-slate-50 shadow-2xl flex flex-col h-full overflow-hidden"
       >
         {/* Header Bar */}
         <div className="px-6 sm:px-10 py-4 sm:py-6 flex items-center justify-between bg-white border-b border-slate-100 shrink-0">
@@ -79,7 +97,7 @@ export default function CandidateProfile({ candidate, onClose, onDelete, onUpdat
         <div className="flex-1 overflow-y-auto custom-scrollbar">
           <div className="p-6 sm:p-10 space-y-8">
             {/* Profile Card */}
-            <div className="bg-white p-6 sm:p-8 rounded-[24px] sm:rounded-[32px] border border-slate-100 shadow-sm flex flex-col md:flex-row items-center md:items-start gap-6 sm:gap-8">
+            <div className="bg-white p-6 sm:p-8 rounded-[24px] sm:rounded-[32px] border border-slate-100 shadow-sm flex flex-col sm:flex-row items-center sm:items-start gap-6 sm:gap-8">
               <div className="relative shrink-0">
                 <div className="w-24 h-24 sm:w-32 sm:h-32 rounded-[24px] sm:rounded-[32px] overflow-hidden border-4 border-white shadow-xl">
                   <img 
@@ -93,25 +111,29 @@ export default function CandidateProfile({ candidate, onClose, onDelete, onUpdat
                 </div>
               </div>
 
-              <div className="flex-1 text-center md:text-left">
-                <div className="flex flex-col md:flex-row items-center gap-2 md:gap-3 mb-2">
+              <div className="flex-1 text-center sm:text-left">
+                <div className="flex flex-col sm:flex-row items-center gap-2 sm:gap-3 mb-2">
                   <h2 className="text-2xl sm:text-4xl font-bold text-slate-900 tracking-tight">{candidate.name}</h2>
                   <span className="px-2 py-0.5 bg-slate-900 text-white text-[8px] sm:text-[10px] font-bold uppercase tracking-widest rounded-lg">Especialista Verificada</span>
                 </div>
-                <div className="flex flex-wrap justify-center md:justify-start items-center gap-3 sm:gap-6 text-primary font-bold mb-4 sm:mb-6 text-sm sm:text-base">
+                <div className="flex flex-wrap justify-center sm:justify-start items-center gap-3 sm:gap-6 text-primary font-bold mb-4 sm:mb-6 text-sm sm:text-base">
                   <span>{candidate.role || 'Arquiteta de Software Sênior'}</span>
                   <div className="hidden sm:block w-1.5 h-1.5 rounded-full bg-slate-300"></div>
-                  <span className="hidden sm:inline">12+ Anos de Experiência</span>
+                  <span className="hidden sm:inline">{candidate.experienceYears || '12+'} Anos de Experiência</span>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                   <div className="flex items-center gap-3 px-4 py-3 bg-slate-50 rounded-xl sm:rounded-2xl border border-slate-100">
                     <Mail className="w-4 h-4 text-primary shrink-0" />
-                    <span className="text-xs sm:text-sm font-medium text-slate-600 truncate">{candidate.email || 'adriana.m@example.com'}</span>
+                    <span className="text-xs sm:text-sm font-medium text-slate-600 truncate">
+                      {candidate.email && candidate.email !== 'Não identificado' ? candidate.email : 'E-mail não identificado'}
+                    </span>
                   </div>
                   <div className="flex items-center gap-3 px-4 py-3 bg-slate-50 rounded-xl sm:rounded-2xl border border-slate-100">
                     <Phone className="w-4 h-4 text-primary shrink-0" />
-                    <span className="text-xs sm:text-sm font-medium text-slate-600">{candidate.phone || '+55 (11) 98877-6655'}</span>
+                    <span className="text-xs sm:text-sm font-medium text-slate-600">
+                      {candidate.phone && candidate.phone !== 'Não identificado' ? candidate.phone : 'Telefone não identificado'}
+                    </span>
                   </div>
                 </div>
               </div>
@@ -134,19 +156,77 @@ export default function CandidateProfile({ candidate, onClose, onDelete, onUpdat
 
               <button 
                 onClick={() => {
-                  if (confirm('Tem certeza que deseja excluir este candidato?')) {
+                  if (isConfirmingDelete) {
                     onDelete?.(candidate.id);
+                  } else {
+                    setIsConfirmingDelete(true);
+                    setTimeout(() => setIsConfirmingDelete(false), 3000);
                   }
                 }}
-                className="px-6 py-4 bg-red-50 text-red-600 border-2 border-red-100 rounded-2xl sm:rounded-3xl font-bold hover:bg-red-100 transition-all flex items-center justify-center gap-2 flex-1 sm:flex-none"
+                className={`px-6 py-4 border-2 rounded-2xl sm:rounded-3xl font-bold transition-all flex items-center justify-center gap-2 flex-1 sm:flex-none ${
+                  isConfirmingDelete 
+                    ? 'bg-red-600 text-white border-red-600 animate-pulse' 
+                    : 'bg-red-50 text-red-600 border-red-100 hover:bg-red-100'
+                }`}
               >
-                Excluir
+                {isConfirmingDelete ? (
+                  <>
+                    <Trash2 className="w-5 h-5" />
+                    Confirmar Exclusão?
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="w-5 h-5" />
+                    Excluir
+                  </>
+                )}
               </button>
 
               <button className="px-6 sm:px-8 py-4 sm:py-5 bg-primary text-white rounded-2xl sm:rounded-3xl font-bold shadow-xl shadow-primary/20 hover:brightness-110 active:scale-95 transition-all flex items-center justify-center gap-3 flex-1 sm:flex-none">
                 <UserCheck className="w-5 h-5" />
                 Contratar
               </button>
+            </div>
+
+            {/* Tags Section */}
+            <div className="bg-white p-6 sm:p-8 rounded-[24px] sm:rounded-[40px] border border-slate-100 shadow-sm">
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-lg sm:text-xl font-bold text-slate-900">Tags de Organização</h3>
+                <div className="flex items-center gap-2">
+                  <input 
+                    type="text" 
+                    placeholder="Nova tag..."
+                    value={newTagInput}
+                    onChange={(e) => setNewTagInput(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && handleAddTag()}
+                    className="px-4 py-2 bg-slate-50 border border-slate-100 rounded-xl text-sm outline-none focus:ring-2 focus:ring-primary/20"
+                  />
+                  <button 
+                    onClick={handleAddTag}
+                    className="p-2 bg-primary text-white rounded-xl hover:scale-105 transition-all"
+                  >
+                    <Plus className="w-5 h-5" />
+                  </button>
+                </div>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {candidate.tags && candidate.tags.length > 0 ? candidate.tags.map(tag => (
+                  <span 
+                    key={tag} 
+                    className="px-4 py-2 bg-primary/10 text-primary rounded-xl font-bold text-sm flex items-center gap-2 group"
+                  >
+                    {tag}
+                    <button 
+                      onClick={() => handleRemoveTag(tag)}
+                      className="hover:text-red-500 transition-colors"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </span>
+                )) : (
+                  <p className="text-sm text-slate-400 italic">Nenhuma tag adicionada ainda.</p>
+                )}
+              </div>
             </div>
 
             {/* Executive Summary */}
@@ -179,11 +259,13 @@ export default function CandidateProfile({ candidate, onClose, onDelete, onUpdat
                 <div>
                   <p className="text-[8px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3 sm:mb-4">Mapa de Especialidades</p>
                   <div className="flex flex-wrap gap-2">
-                    {skills.map(skill => (
+                    {skills.length > 0 ? skills.map(skill => (
                       <span key={skill} className="px-3 py-1.5 sm:px-4 sm:py-2 bg-slate-50 border border-slate-100 rounded-lg sm:rounded-xl text-[10px] sm:text-sm font-bold text-slate-600">
                         {skill}
                       </span>
-                    ))}
+                    )) : (
+                      <span className="text-xs text-slate-400 italic">Nenhuma habilidade identificada</span>
+                    )}
                   </div>
                 </div>
 
@@ -194,14 +276,14 @@ export default function CandidateProfile({ candidate, onClose, onDelete, onUpdat
                       Pontos Fortes
                     </div>
                     <ul className="space-y-2 sm:space-y-3">
-                      <li className="text-xs sm:text-sm text-slate-600 flex gap-2">
-                        <span className="w-1.5 h-1.5 rounded-full bg-green-500 mt-1.5 shrink-0"></span>
-                        Capacidade comprovada de liderar migrações de cloud complexas.
-                      </li>
-                      <li className="text-xs sm:text-sm text-slate-600 flex gap-2">
-                        <span className="w-1.5 h-1.5 rounded-full bg-green-500 mt-1.5 shrink-0"></span>
-                        Forte viés de mentoria e desenvolvimento de times técnicos.
-                      </li>
+                      {(candidate.strengths && candidate.strengths.length > 0) ? candidate.strengths.map((strength, idx) => (
+                        <li key={idx} className="text-xs sm:text-sm text-slate-600 flex gap-2">
+                          <span className="w-1.5 h-1.5 rounded-full bg-green-500 mt-1.5 shrink-0"></span>
+                          {strength}
+                        </li>
+                      )) : (
+                        <li className="text-xs sm:text-sm text-slate-400 italic">Nenhum ponto forte identificado</li>
+                      )}
                     </ul>
                   </div>
                   <div className="p-4 sm:p-6 bg-amber-50/50 rounded-2xl sm:rounded-3xl border border-amber-100">
@@ -210,10 +292,14 @@ export default function CandidateProfile({ candidate, onClose, onDelete, onUpdat
                       Áreas de Atenção
                     </div>
                     <ul className="space-y-2 sm:space-y-3">
-                      <li className="text-xs sm:text-sm text-slate-600 flex gap-2">
-                        <span className="w-1.5 h-1.5 rounded-full bg-amber-500 mt-1.5 shrink-0"></span>
-                        Expectativa salarial no limite superior da faixa orçamentária.
-                      </li>
+                      {(candidate.attentionAreas && candidate.attentionAreas.length > 0) ? candidate.attentionAreas.map((area, idx) => (
+                        <li key={idx} className="text-xs sm:text-sm text-slate-600 flex gap-2">
+                          <span className="w-1.5 h-1.5 rounded-full bg-amber-500 mt-1.5 shrink-0"></span>
+                          {area}
+                        </li>
+                      )) : (
+                        <li className="text-xs sm:text-sm text-slate-400 italic">Nenhuma área de atenção identificada</li>
+                      )}
                     </ul>
                   </div>
                 </div>

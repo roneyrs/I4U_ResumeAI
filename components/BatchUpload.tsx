@@ -97,17 +97,19 @@ export default function BatchUpload({ apiKey, prompt, setPrompt, onComplete }: B
           )
         );
 
+        const fileArrayBuffer = await currentFile.arrayBuffer();
         const response = await axios.post(
-          "https://api.i4uai.com/resume/analisar_curriculo",
-          currentFile,
+          "/api/analyze",
+          fileArrayBuffer,
           {
             headers: {
-              "x-api-key": apiKey,
+              "x-api-key": apiKey.trim(),
               "Content-Type": "application/pdf",
             },
             params: {
               prompt: prompt,
             },
+            timeout: 120000, // 120 seconds timeout on client
           }
         );
 
@@ -119,20 +121,91 @@ export default function BatchUpload({ apiKey, prompt, setPrompt, onComplete }: B
         );
         await new Promise(r => setTimeout(r, 500));
 
-        const data = response.data;
+        let data = response.data;
+        
+        // Robust JSON parsing (handles markdown blocks and common API quirks)
+        if (typeof data === 'string') {
+          try {
+            // Remove markdown code blocks if present
+            const cleanJson = data.replace(/```json\n?|```/g, '').trim();
+            data = JSON.parse(cleanJson);
+          } catch (e) {
+            console.warn("Failed to parse API response as JSON, using raw string:", e);
+          }
+        }
+        
+        console.log("I4U API Full Response:", JSON.stringify(data, null, 2));
+
+        // Helper to find email/phone using regex in the entire response string
+        const findByRegex = (obj: any, regex: RegExp): string | null => {
+          const str = JSON.stringify(obj);
+          const match = str.match(regex);
+          return match ? match[0] : null;
+        };
+
+        // Deep search helper to find keys anywhere in the response
+        const findKeyDeep = (obj: any, targetKeys: string[]): any => {
+          if (!obj || typeof obj !== 'object') return null;
+          
+          // Check current level
+          for (const key of targetKeys) {
+            if (obj[key] !== undefined && obj[key] !== null && obj[key] !== '') {
+              return obj[key];
+            }
+          }
+
+          // Check nested levels
+          for (const key in obj) {
+            if (Object.prototype.hasOwnProperty.call(obj, key)) {
+              const found = findKeyDeep(obj[key], targetKeys);
+              if (found) return found;
+            }
+          }
+          return null;
+        };
+
+        const extractedName = findKeyDeep(data, ['nome', 'name', 'full_name', 'candidato', 'display_name', 'candidate_name', 'nome_completo']);
+        
+        // Try key search first, then regex fallback
+        let extractedEmail = findKeyDeep(data, ['email', 'e_mail', 'e-mail', 'mail', 'user_email', 'contato_email', 'email_candidato', 'address_email']);
+        if (!extractedEmail) {
+          extractedEmail = findByRegex(data, /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
+        }
+
+        let extractedPhone = findKeyDeep(data, ['telefone', 'phone', 'tel', 'celular', 'mobile', 'contact', 'whatsapp', 'contato_telefone', 'phone_number', 'telephone']);
+        if (!extractedPhone) {
+          extractedPhone = findByRegex(data, /(\+?\d{1,3}[-.\s]?)?\(?\d{2,3}\)?[-.\s]?\d{4,5}[-.\s]?\d{4}/);
+        }
+
+        const extractedRole = findKeyDeep(data, ['cargo', 'role', 'position', 'job_title', 'headline', 'ocupacao']);
+        const extractedScore = findKeyDeep(data, ['pontuacao', 'score', 'rating', 'match', 'percentual', 'aderencia']);
+        const extractedAnalysis = findKeyDeep(data, ['analise', 'analysis', 'summary', 'resumo', 'feedback', 'comentario']);
+        const extractedExperience = findKeyDeep(data, ['experiencia', 'experience', 'experience_years', 'anos_experiencia', 'tempo_experiencia']);
+        const extractedSkills = findKeyDeep(data, ['skills', 'habilidades', 'competencias', 'tecnologias', 'conhecimentos']);
+        const extractedStrengths = findKeyDeep(data, ['strengths', 'pontos_fortes', 'fortalezas', 'qualidades']);
+        const extractedAttention = findKeyDeep(data, ['attention_areas', 'pontos_atencao', 'areas_atencao', 'weaknesses', 'melhorias']);
+
         const result = {
           id: Math.random().toString(36).substr(2, 9),
-          name: currentFile.name.replace('.pdf', ''),
-          score: parseFloat(data.pontuacao) || 0,
-          analysis: data.analise,
+          name: extractedName || currentFile.name.replace('.pdf', ''),
+          score: typeof extractedScore === 'number' ? extractedScore : parseFloat(extractedScore) || 0,
+          analysis: extractedAnalysis || data.analise || 'Sem análise disponível',
           status: 'Em Análise',
           date: new Date().toISOString(),
-          email: `${currentFile.name.toLowerCase().replace(/\s+/g, '.').replace('.pdf', '')}@cloud-ops.ai`,
-          phone: `+55 (11) 9${Math.floor(1000 + Math.random() * 9000)}-${Math.floor(1000 + Math.random() * 9000)}`,
-          role: 'Especialista de Sistemas'
+          email: extractedEmail || 'Não identificado',
+          phone: extractedPhone || 'Não identificado',
+          role: extractedRole || 'Não identificado',
+          experienceYears: extractedExperience || 'Não especificado',
+          skills: Array.isArray(extractedSkills) ? extractedSkills.map(s => String(s)) : [],
+          strengths: Array.isArray(extractedStrengths) ? extractedStrengths.map(s => String(s)) : [],
+          attentionAreas: Array.isArray(extractedAttention) ? extractedAttention.map(s => String(s)) : [],
+          tags: []
         };
 
         results.push(result);
+        
+        // Small delay between files to avoid rate limits/congestion
+        await new Promise(r => setTimeout(r, 1000));
 
         // Update to Stage 4: Done
         setFiles(prev =>
@@ -144,17 +217,19 @@ export default function BatchUpload({ apiKey, prompt, setPrompt, onComplete }: B
         let errorMessage = "Erro inesperado";
 
         if (axios.isAxiosError(err)) {
-          errorMessage =
-            typeof err.response?.data === "string"
-              ? err.response.data
-              : err.response?.data?.message ||
-                err.response?.data?.error ||
-                err.message;
+          const data = err.response?.data;
+          errorMessage = 
+            (typeof data === 'object' && data?.error) ? data.error :
+            (typeof data === 'string' ? data : err.message);
+          
+          if (err.code === 'ECONNABORTED') {
+            errorMessage = "A requisição demorou muito e foi cancelada.";
+          }
         } else {
           errorMessage = err?.message || "Erro inesperado";
         }
 
-        console.error("Erro na API:", errorMessage);
+        console.error("Erro na API:", errorMessage, err);
 
         setFiles(prev =>
           prev.map((f, idx) =>
@@ -198,10 +273,10 @@ export default function BatchUpload({ apiKey, prompt, setPrompt, onComplete }: B
         </div>
       </div>
 
-      <div className="grid grid-cols-12 gap-8">
+      <div className="grid grid-cols-12 gap-6 lg:gap-8">
         {/* Left Column: Upload & Prompt */}
-        <div className="col-span-12 lg:col-span-7 space-y-8">
-          <div className="bg-white p-8 rounded-[32px] border border-slate-100 shadow-sm">
+        <div className="col-span-12 md:col-span-6 lg:col-span-7 space-y-8">
+          <div className="bg-white p-6 sm:p-8 rounded-[24px] sm:rounded-[32px] border border-slate-100 shadow-sm">
             <div className="flex items-center gap-3 mb-6">
               <div className="w-8 h-8 bg-primary/10 rounded-lg flex items-center justify-center">
                 <Layers className="w-4 h-4 text-primary" />
@@ -273,8 +348,8 @@ export default function BatchUpload({ apiKey, prompt, setPrompt, onComplete }: B
         </div>
 
         {/* Right Column: Active Queue */}
-        <div className="col-span-12 lg:col-span-5">
-          <div className="bg-white rounded-[32px] border border-slate-100 shadow-sm overflow-hidden flex flex-col h-full min-h-[600px]">
+        <div className="col-span-12 md:col-span-6 lg:col-span-5">
+          <div className="bg-white rounded-[24px] sm:rounded-[32px] border border-slate-100 shadow-sm overflow-hidden flex flex-col h-full min-h-[500px] sm:min-h-[600px]">
             <div className="p-8 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 bg-secondary/10 rounded-xl flex items-center justify-center">
