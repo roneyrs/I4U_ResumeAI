@@ -4,6 +4,7 @@ import React from 'react';
 import { LayoutDashboard, Users, CloudUpload, Settings, Plus, LogOut, User } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import Image from 'next/image';
+import { supabase } from '@/lib/supabase';
 
 interface SidebarProps {
   activeTab: string;
@@ -17,6 +18,15 @@ interface SidebarProps {
 }
 
 export default function Sidebar({ activeTab, setActiveTab, isOpen, onClose, user }: SidebarProps) {
+  const handleLogout = async () => {
+    if (supabase) {
+      await supabase.auth.signOut();
+      localStorage.removeItem('i4u_session_active');
+      localStorage.removeItem('i4u_results');
+      window.location.href = '/';
+    }
+  };
+
   const menuItems = [
     { id: 'dashboard', label: 'Painel', icon: LayoutDashboard },
     { id: 'candidates', label: 'Banco de Talentos', icon: Users },
@@ -94,6 +104,13 @@ export default function Sidebar({ activeTab, setActiveTab, isOpen, onClose, user
             </p>
             <p className="text-[10px] text-slate-400 truncate tracking-tight">Plano Enterprise</p>
           </div>
+          <button 
+            onClick={handleLogout}
+            className="p-2 text-slate-400 hover:text-red-400 transition-colors"
+            title="Sair"
+          >
+            <LogOut className="w-4 h-4" />
+          </button>
         </div>
       </div>
     </aside>

@@ -30,9 +30,12 @@ export default function Auth() {
         const { error } = await supabase.auth.signUp({
           email,
           password,
+          options: {
+            emailRedirectTo: window.location.origin,
+          }
         });
         if (error) throw error;
-        alert('Cadastro realizado! Por favor, verifique seu e-mail (se necessário) e faça login.');
+        alert('Cadastro realizado! Um e-mail de confirmação foi enviado. Por favor, verifique sua caixa de entrada e clique no link para ativar sua conta. Dica: Se o link der erro de validade, tente fazer login diretamente; em alguns casos, o e-mail é confirmado automaticamente pelo provedor.');
         setIsLogin(true);
       }
     } catch (err: any) {

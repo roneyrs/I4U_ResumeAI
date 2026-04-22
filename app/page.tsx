@@ -74,15 +74,17 @@ export default function Home() {
     let isMounted = true;
 
     const setupAuth = async () => {
+      const client = supabase;
+      if (!client || !client.auth) return null;
       try {
-        const { data: { session } } = await supabase.auth.getSession();
+        const { data: { session } } = await client.auth.getSession();
         if (isMounted) {
           setSession(session);
           setAuthLoading(false);
         }
 
-        if (typeof supabase.auth.onAuthStateChanged === 'function') {
-          const { data } = supabase.auth.onAuthStateChanged((_event, session) => {
+        if (typeof client.auth.onAuthStateChanged === 'function') {
+          const { data } = client.auth.onAuthStateChanged((_event, session) => {
             if (isMounted) {
               setSession(session);
             }
@@ -124,8 +126,9 @@ export default function Home() {
     if (savedPrompt) setPrompt(savedPrompt);
 
     const fetchCandidates = async () => {
-      if (!supabase || !session) {
-        if (!supabase) console.warn('Supabase not configured. Loading from localStorage.');
+      const client = supabase;
+      if (!client || !session) {
+        if (!client) console.warn('Supabase not configured. Loading from localStorage.');
         const savedResults = localStorage.getItem('i4u_results');
         if (savedResults) {
           try {
@@ -138,7 +141,7 @@ export default function Home() {
       }
 
       console.log('Attempting to fetch candidates from Supabase for user:', session?.user?.id);
-      const { data, error } = await supabase
+      const { data, error } = await client
         .from('candidates')
         .select('*')
         .eq('user_id', session?.user?.id) // Filter by user_id
@@ -175,7 +178,8 @@ export default function Home() {
 
     // Test connection and check schema
     const testConnection = async () => {
-      if (!supabase) {
+      const client = supabase;
+      if (!client) {
         setSupabaseStatus('not-configured');
         return;
       }
@@ -187,7 +191,7 @@ export default function Home() {
 
         for (const col of requiredColumns) {
           try {
-            const { error } = await supabase.from('candidates').select(col).limit(0);
+            const { error } = await client.from('candidates').select(col).limit(0);
             if (error) {
               console.log(`Check for column "${col}" returned error:`, error.code, error.message);
               if (error.code === 'PGRST204' || error.message?.includes('column') || error.message?.includes('not found')) {
@@ -205,7 +209,7 @@ export default function Home() {
           setMissingColumns(missing);
           setSupabaseStatus('connected'); // Still connected, but with schema issues
         } else {
-          const { error } = await supabase.from('candidates').select('id').limit(1);
+          const { error } = await client.from('candidates').select('id').limit(1);
           if (error) {
             console.error('Supabase connection test failed:', error.message);
             setSupabaseStatus('disconnected');
@@ -271,7 +275,8 @@ export default function Home() {
 
     console.log('Final object to insert into Supabase:', JSON.stringify(resultsForSupabase, null, 2));
 
-    if (!supabase || !session) {
+    const client = supabase;
+    if (!client || !session) {
       console.warn('Supabase not configured or no session. Saving to local state only.');
       const localResults = allData.map((r, i) => ({
         ...r,
@@ -291,7 +296,7 @@ export default function Home() {
       const maxAttempts = 5;
 
       while (attempts < maxAttempts) {
-        const result = await supabase
+        const result = await client
           .from('candidates')
           .insert(resultsForSupabase)
           .select();
@@ -365,13 +370,14 @@ export default function Home() {
   };
 
   const handleDeleteCandidate = async (id: string) => {
-    if (!supabase) {
+    const client = supabase;
+    if (!client) {
       setResults(prev => prev.filter(c => c.id !== id));
       if (viewingCandidate?.id === id) setViewingCandidate(null);
       return;
     }
 
-    const { error } = await supabase
+    const { error } = await client
       .from('candidates')
       .delete()
       .eq('id', id);
@@ -387,13 +393,14 @@ export default function Home() {
   const handleUpdateStatus = async (id: string, newStatus: string) => {
     console.log(`Updating status for candidate ${id} to ${newStatus}`);
     
-    if (!supabase || id.startsWith('temp-')) {
+    const client = supabase;
+    if (!client || id.startsWith('temp-')) {
       console.log('Updating local state only (no Supabase or temporary ID)');
       setResults(prev => prev.map(c => c.id === id ? { ...c, status: newStatus } : c));
       return;
     }
 
-    const { error } = await supabase
+    const { error } = await client
       .from('candidates')
       .update({ status: newStatus })
       .eq('id', id);
@@ -411,7 +418,8 @@ export default function Home() {
   const handleUpdateTags = async (id: string, newTags: string[]) => {
     console.log(`Updating tags for candidate ${id} to`, newTags);
     
-    if (!supabase || id.startsWith('temp-')) {
+    const client = supabase;
+    if (!client || id.startsWith('temp-')) {
       console.log('Updating local state only (no Supabase or temporary ID)');
       setResults(prev => prev.map(c => c.id === id ? { ...c, tags: newTags } : c));
       
@@ -422,7 +430,7 @@ export default function Home() {
       return;
     }
 
-    const { error } = await supabase
+    const { error } = await client
       .from('candidates')
       .update({ tags: newTags })
       .eq('id', id);

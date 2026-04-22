@@ -25,7 +25,19 @@ export default function UserProfile({ user: authUser }: UserProfileProps) {
 
   const handleLogout = async () => {
     if (supabase) {
-      await supabase.auth.signOut();
+      try {
+        await supabase.auth.signOut();
+        // Clear local session markers
+        localStorage.removeItem('i4u_session_active');
+        localStorage.removeItem('i4u_results');
+        // Fallback for some environments where the listener might be slow
+        window.location.href = '/';
+      } catch (err) {
+        console.error('Error signing out:', err);
+        // Even if supabase fails, we try to clear local state
+        localStorage.removeItem('i4u_session_active');
+        window.location.reload();
+      }
     }
   };
 
