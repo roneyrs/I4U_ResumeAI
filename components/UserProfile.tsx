@@ -1,18 +1,32 @@
 'use client';
 
 import React from 'react';
-import { User, Mail, Shield, CreditCard, Bell, LogOut, Camera, CheckCircle2, Zap } from 'lucide-react';
+import { User as UserIcon, Mail, Shield, CreditCard, Bell, LogOut, Camera, CheckCircle2, Zap } from 'lucide-react';
 import { motion } from 'motion/react';
 import Image from 'next/image';
+import { supabase } from '@/lib/supabase';
 
-export default function UserProfile() {
+interface UserProfileProps {
+  user?: {
+    email?: string;
+    id?: string;
+  } | null;
+}
+
+export default function UserProfile({ user: authUser }: UserProfileProps) {
   const user = {
-    name: 'Usuário Admin',
-    email: 'admin@i4uai.com',
+    name: authUser?.email?.split('@')[0] || 'Novo Usuário',
+    email: authUser?.email || 'usuario@i4uai.com',
     role: 'Administrador Senior',
     plan: 'Enterprise',
     joined: 'Janeiro 2024',
-    avatar: 'https://picsum.photos/seed/admin/200/200'
+    avatar: `https://picsum.photos/seed/${authUser?.id || 'admin'}/200/200`
+  };
+
+  const handleLogout = async () => {
+    if (supabase) {
+      await supabase.auth.signOut();
+    }
   };
 
   const stats = [
@@ -64,7 +78,10 @@ export default function UserProfile() {
               </div>
             </div>
 
-            <button className="w-full mt-8 py-4 bg-slate-900 text-white rounded-2xl font-bold flex items-center justify-center gap-2 hover:bg-slate-800 transition-all">
+            <button 
+              onClick={handleLogout}
+              className="w-full mt-8 py-4 bg-slate-900 text-white rounded-2xl font-bold flex items-center justify-center gap-2 hover:bg-slate-800 transition-all"
+            >
               <LogOut className="w-4 h-4" />
               Encerrar Sessão
             </button>

@@ -9,7 +9,9 @@ import BatchUpload from '@/components/BatchUpload';
 import CandidateList, { Candidate } from '@/components/CandidateList';
 import CandidateProfile from '@/components/CandidateProfile';
 import UserProfile from '@/components/UserProfile';
+import Auth from '@/components/Auth';
 import { motion, AnimatePresence } from 'motion/react';
+import { Loader2 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 
 export default function Home() {
@@ -20,6 +22,8 @@ export default function Home() {
   const [results, setResults] = React.useState<Candidate[]>([]);
   const [viewingCandidate, setViewingCandidate] = React.useState<Candidate | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = React.useState(false);
+  const [session, setSession] = React.useState<any>(null);
+  const [authLoading, setAuthLoading] = React.useState(true);
   const [supabaseStatus, setSupabaseStatus] = React.useState<'connected' | 'disconnected' | 'not-configured'>('not-configured');
   const [missingColumns, setMissingColumns] = React.useState<string[]>([]);
   const missingColumnsRef = React.useRef<string[]>([]);
@@ -60,8 +64,59 @@ export default function Home() {
     };
   }, [activeTab]); // Re-sync when tab changes
 
+  // Auth Listener
+  React.useEffect(() => {
+    if (!supabase || !supabase.auth) {
+      setAuthLoading(false);
+      return;
+    }
+
+    let isMounted = true;
+
+    const setupAuth = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (isMounted) {
+          setSession(session);
+          setAuthLoading(false);
+        }
+
+        if (typeof supabase.auth.onAuthStateChanged === 'function') {
+          const { data } = supabase.auth.onAuthStateChanged((_event, session) => {
+            if (isMounted) {
+              setSession(session);
+            }
+          });
+          
+          return data?.subscription;
+        }
+      } catch (err) {
+        console.error('Auth setup error:', err);
+        if (isMounted) setAuthLoading(false);
+      }
+      return null;
+    };
+
+    const subPromise = setupAuth();
+
+    return () => {
+      isMounted = false;
+      subPromise.then(sub => {
+        if (sub && typeof sub.unsubscribe === 'function') {
+          sub.unsubscribe();
+        }
+      });
+    };
+  }, []);
+
   // Load data from Supabase on mount
   React.useEffect(() => {
+    if (authLoading) return;
+
+    if (session) {
+      localStorage.setItem('i4u_session_active', 'true');
+    }
+
     const savedApiKey = localStorage.getItem('i4u_api_key');
     const savedPrompt = localStorage.getItem('i4u_last_prompt');
 
@@ -69,8 +124,8 @@ export default function Home() {
     if (savedPrompt) setPrompt(savedPrompt);
 
     const fetchCandidates = async () => {
-      if (!supabase) {
-        console.warn('Supabase not configured. Loading from localStorage.');
+      if (!supabase || !session) {
+        if (!supabase) console.warn('Supabase not configured. Loading from localStorage.');
         const savedResults = localStorage.getItem('i4u_results');
         if (savedResults) {
           try {
@@ -82,10 +137,11 @@ export default function Home() {
         return;
       }
 
-      console.log('Attempting to fetch candidates from Supabase...');
+      console.log('Attempting to fetch candidates from Supabase for user:', session?.user?.id);
       const { data, error } = await supabase
         .from('candidates')
         .select('*')
+        .eq('user_id', session?.user?.id) // Filter by user_id
         .order('created_at', { ascending: false });
 
       if (error) {
@@ -185,6 +241,7 @@ export default function Home() {
     
     // Prepare full data for local state
     const allData = newResults.map(r => ({
+      user_id: session?.user?.id,
       name: r.name,
       score: Math.min(99.99, r.score || 0),
       status: 'Em Análise',
@@ -214,8 +271,8 @@ export default function Home() {
 
     console.log('Final object to insert into Supabase:', JSON.stringify(resultsForSupabase, null, 2));
 
-    if (!supabase) {
-      console.warn('Supabase not configured. Saving to local state only.');
+    if (!supabase || !session) {
+      console.warn('Supabase not configured or no session. Saving to local state only.');
       const localResults = allData.map((r, i) => ({
         ...r,
         id: `temp-${Date.now()}-${i}`,
@@ -385,6 +442,25 @@ export default function Home() {
     }
   };
 
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4 antialiased">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center shadow-xl mb-2">
+            <span className="text-primary font-bold text-2xl animate-pulse">I4U</span>
+          </div>
+          <div className="flex items-center gap-2 text-slate-400 font-bold text-xs uppercase tracking-widest">
+            <Loader2 className="w-4 h-4 animate-spin" /> Carregando Camada...
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!session && supabase) {
+    return <Auth />;
+  }
+
   return (
     <div className="flex min-h-screen bg-surface overflow-x-hidden">
       <Sidebar 
@@ -395,6 +471,7 @@ export default function Home() {
         }} 
         isOpen={isSidebarOpen}
         onClose={() => setIsSidebarOpen(false)}
+        user={session?.user}
       />
       
       <main className="flex-1 lg:ml-64 min-h-screen flex flex-col relative w-full overflow-x-hidden">
@@ -470,7 +547,7 @@ export default function Home() {
 
                 {activeTab === 'profile' && (
                   <div className="max-w-5xl">
-                    <UserProfile />
+                    <UserProfile user={session?.user} />
                   </div>
                 )}
 

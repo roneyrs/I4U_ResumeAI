@@ -20,3 +20,34 @@ if (!isValidUrl(supabaseUrl) || !supabaseAnonKey) {
 export const supabase = (isValidUrl(supabaseUrl) && supabaseAnonKey) 
   ? createClient(supabaseUrl, supabaseAnonKey) 
   : null;
+
+/**
+ * MIGRATION SQL (Run this in Supabase SQL Editor):
+ * 
+ * -- 1. Update candidates table to support multi-tenancy
+ * ALTER TABLE candidates ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES auth.users(id);
+ * 
+ * -- 2. Enable RLS
+ * ALTER TABLE candidates ENABLE ROW LEVEL SECURITY;
+ * 
+ * -- 3. Create RLS Policies
+ * CREATE POLICY "Users can only see their own candidates" 
+ * ON candidates FOR SELECT 
+ * USING (auth.uid() = user_id);
+ * 
+ * CREATE POLICY "Users can only insert their own candidates" 
+ * ON candidates FOR INSERT 
+ * WITH CHECK (auth.uid() = user_id);
+ * 
+ * CREATE POLICY "Users can only update their own candidates" 
+ * ON candidates FOR UPDATE 
+ * USING (auth.uid() = user_id);
+ * 
+ * CREATE POLICY "Users can only delete their own candidates" 
+ * ON candidates FOR DELETE 
+ * USING (auth.uid() = user_id);
+ * 
+ * -- Repeat similar for 'jobs' table
+ * ALTER TABLE jobs ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES auth.users(id);
+ * ALTER TABLE jobs ENABLE ROW LEVEL SECURITY;
+ */

@@ -1,85 +1,62 @@
 import { NextRequest, NextResponse } from 'next/server';
 import axios from 'axios';
 
-export const maxDuration = 300; // Increase timeout to 5 minutes
+export const maxDuration = 300; // 5 minutes
 
 export async function POST(req: NextRequest) {
-  const { searchParams } = new URL(req.url);
-  const prompt = searchParams.get('prompt');
-  const apiKey = req.headers.get('x-api-key')?.trim();
-
-  console.log(`[Proxy] Received request. Prompt: ${prompt?.substring(0, 50)}...`);
-
-  if (!apiKey) {
-    console.error('[Proxy] Missing API Key');
-    return NextResponse.json({ error: 'API Key is required' }, { status: 400 });
-  }
-
   try {
-    const body = await req.arrayBuffer();
-    console.log(`[Proxy] Body size: ${body.byteLength} bytes`);
-    
-    if (body.byteLength === 0 && !prompt?.includes('test_connection')) {
-      console.warn('[Proxy] Warning: Empty body received');
+    const { searchParams } = new URL(req.url);
+    const prompt = searchParams.get('prompt');
+    const apiKey = req.headers.get('x-api-key')?.trim();
+
+    if (!apiKey) {
+      return NextResponse.json({ error: 'API Key is required' }, { status: 400 });
     }
 
-    const targetUrl = new URL("https://api.i4uai.com/resume/analisar_curriculo");
-    if (prompt) targetUrl.searchParams.append('prompt', prompt);
+    const arrayBuffer = await req.arrayBuffer();
+    const body = Buffer.from(arrayBuffer);
+    const isTest = prompt === 'test_connection';
 
-    console.log(`[Proxy] Forwarding to: ${targetUrl.toString()}`);
-
-    let response;
-    let retries = 2;
+    const targetUrl = "https://api.i4uai.com/resume/analisar_curriculo";
     
-    while (retries >= 0) {
-      try {
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 120000); // 2 minutes timeout per attempt
+    // Using axios for more robust body handling in Node
+    const response = await axios.post(targetUrl, body, {
+      params: { prompt },
+      headers: {
+        "x-api-key": apiKey,
+        "Accept": "application/json",
+        "Content-Type": "application/pdf",
+      },
+      // Important: validateStatus allows us to handle 400/401 gracefully
+      validateStatus: () => true, 
+      timeout: 120000, // 2 minutes
+    });
 
-        response = await fetch(targetUrl.toString(), {
-          method: 'POST',
-          headers: {
-            "x-api-key": apiKey,
-            "Content-Type": "application/pdf",
-          },
-          body: Buffer.from(body),
-          signal: controller.signal,
-        });
-        
-        clearTimeout(timeoutId);
-        break; // Success, exit loop
-      } catch (e: any) {
-        if (retries === 0) throw e;
-        console.warn(`[Proxy] Fetch failed, retrying... (${retries} left). Error: ${e.message}`);
-        retries--;
-        await new Promise(r => setTimeout(r, 2000)); // Wait 2s before retry
-      }
+    console.log(`[Proxy] I4U API Response Status: ${response.status}`);
+
+    // If it's a test and we get 400, the key is valid but the body (0 bytes) was rejected
+    if (isTest && response.status === 400) {
+      return NextResponse.json({ message: 'Key validated' }, { status: 200 });
     }
 
-    if (!response) throw new Error("Failed to get response from I4U API");
-
-    console.log(`[Proxy] I4U API Status: ${response.status}`);
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error(`[Proxy] I4U API Error: ${errorText}`);
+    if (response.status >= 400) {
       return NextResponse.json(
-        { error: errorText || `API returned ${response.status}` },
-        { status: response.status }
+        { 
+          error: response.data?.error || response.data?.message || `API returned ${response.status}`,
+          status: response.status 
+        },
+        { status: response.status === 401 || response.status === 403 ? response.status : 500 }
       );
     }
 
-    const data = await response.json();
-    console.log('[Proxy] Success');
-    return NextResponse.json(data);
+    return NextResponse.json(response.data);
   } catch (error: any) {
-    console.error('[Proxy] Fatal Error:', error.message);
+    console.error('[Proxy Fatal Error]:', error.message);
     return NextResponse.json(
       { 
-        error: error.name === 'TimeoutError' ? 'A API da I4U demorou muito para responder.' : error.message,
-        details: error.stack
+        error: error.code === 'ECONNABORTED' ? 'A API da I4U demorou muito para responder.' : error.message,
       },
-      { status: error.name === 'TimeoutError' ? 504 : 500 }
+      { status: error.code === 'ECONNABORTED' ? 504 : 500 }
     );
   }
 }

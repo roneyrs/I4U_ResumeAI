@@ -10,9 +10,13 @@ interface SidebarProps {
   setActiveTab: (tab: string) => void;
   isOpen?: boolean;
   onClose?: () => void;
+  user?: {
+    email?: string;
+    id?: string;
+  } | null;
 }
 
-export default function Sidebar({ activeTab, setActiveTab, isOpen, onClose }: SidebarProps) {
+export default function Sidebar({ activeTab, setActiveTab, isOpen, onClose, user }: SidebarProps) {
   const menuItems = [
     { id: 'dashboard', label: 'Painel', icon: LayoutDashboard },
     { id: 'candidates', label: 'Banco de Talentos', icon: Users },
@@ -77,7 +81,7 @@ export default function Sidebar({ activeTab, setActiveTab, isOpen, onClose }: Si
         <div className="flex items-center gap-3 px-2">
           <div className="w-8 h-8 rounded-full overflow-hidden bg-slate-600 relative">
             <Image
-              src="https://picsum.photos/seed/admin/100/100"
+              src={`https://picsum.photos/seed/${user?.id || 'admin'}/100/100`}
               alt="User"
               fill
               className="object-cover"
@@ -85,8 +89,10 @@ export default function Sidebar({ activeTab, setActiveTab, isOpen, onClose }: Si
             />
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-semibold truncate">Usuário Admin</p>
-            <p className="text-xs text-slate-400 truncate">Plano Enterprise</p>
+            <p className="text-sm font-semibold truncate leading-tight">
+              {user?.email?.split('@')[0] || 'Usuário Admin'}
+            </p>
+            <p className="text-[10px] text-slate-400 truncate tracking-tight">Plano Enterprise</p>
           </div>
         </div>
       </div>

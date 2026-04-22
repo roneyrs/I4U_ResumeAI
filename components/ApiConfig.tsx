@@ -31,36 +31,36 @@ export default function ApiConfig({ apiKey, onApiKeyChange }: ApiConfigProps) {
 
     try {
       // Fazemos uma chamada mínima para testar a chave
-      // Usamos um prompt simples e um corpo vazio ou mínimo se a API permitir
-      // Se a API retornar 401/403, a chave é inválida.
-      // Se retornar 400 (Bad Request), a chave provavelmente é válida mas o corpo está vazio.
       const url = "/api/analyze?prompt=test_connection";
       
-      await axios.post(url, null, {
+      // Enviamos um Uint8Array vazio em vez de null para garantir que o Content-Type seja respeitado
+      // e o corpo não seja interpretado de forma ambíguos pelo axios/proxy
+      await axios.post(url, new Uint8Array(0), {
         headers: {
           "x-api-key": apiKey.trim(),
-          "Content-Type": "application/octet-stream"
+          "Content-Type": "application/pdf"
         },
-        timeout: 30000 // 30 seconds timeout
+        timeout: 20000 // 20 seconds timeout
       });
 
-      // Se chegar aqui sem erro (improvável com body null, mas possível dependendo da API)
       setStatus('success');
       setLatency(Date.now() - startTime);
     } catch (err: any) {
       const endTime = Date.now();
       const responseStatus = err.response?.status;
       
+      // O proxy agora retorna 200 se o I4U retornar 400 em um teste
       if (responseStatus === 401 || responseStatus === 403) {
         setStatus('error');
         setErrorMessage('Chave de API inválida ou sem permissão.');
-      } else if (responseStatus === 400) {
-        // 400 geralmente indica que a chave é válida mas os dados enviados (null) são inválidos
-        setStatus('success');
-        setLatency(endTime - startTime);
       } else {
         setStatus('error');
-        setErrorMessage(err.response?.data?.message || err.message || 'Erro ao conectar com a API.');
+        setErrorMessage(
+          err.response?.data?.error || 
+          err.response?.data?.message || 
+          err.message || 
+          'Erro ao conectar com a API.'
+        );
       }
     }
   };
@@ -95,7 +95,7 @@ export default function ApiConfig({ apiKey, onApiKeyChange }: ApiConfigProps) {
           <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-2">
             Chave de API Secreta
           </label>
-          <div className="relative">
+          <div className="relative mb-2">
             <input
               type={showKey ? "text" : "password"}
               value={apiKey}
@@ -114,6 +114,17 @@ export default function ApiConfig({ apiKey, onApiKeyChange }: ApiConfigProps) {
               {showKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
             </button>
           </div>
+          <p className="text-[10px] text-slate-400">
+            Não tem uma chave? Obtenha em{' '}
+            <a 
+              href="https://agents-marketplace.i4uai.com/" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="text-primary hover:underline font-bold"
+            >
+              marketplace.i4uai.com
+            </a>
+          </p>
           <AnimatePresence>
             {errorMessage && (
               <motion.p 
