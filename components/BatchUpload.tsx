@@ -179,8 +179,22 @@ export default function BatchUpload({ apiKey, prompt, setPrompt, onComplete, onV
         }
 
         const extractedRole = findKeyDeep(data, ['cargo', 'role', 'position', 'job_title', 'headline', 'ocupacao']);
-        const extractedScore = findKeyDeep(data, ['pontuacao', 'score', 'rating', 'match', 'percentual', 'aderencia']);
+        let extractedScore = findKeyDeep(data, ['pontuacao', 'score', 'rating', 'match', 'percentual', 'aderencia']);
         const extractedAnalysis = findKeyDeep(data, ['analise', 'analysis', 'summary', 'resumo', 'feedback', 'comentario']);
+
+        // Fallback for "N/A" score or missing score
+        if (extractedScore === 'N/A' || extractedScore === null || extractedScore === undefined || extractedScore === '') {
+          if (extractedAnalysis && typeof extractedAnalysis === 'string') {
+            // Try to find score in the analysis text (e.g., **Pontuacao:** 9.0)
+            const scoreMatch = extractedAnalysis.match(/\*\*Pontua[cç][aã]o:\*\*\s*([\d.]+)/i) || 
+                               extractedAnalysis.match(/Pontua[cç][aã]o:\s*([\d.]+)/i) ||
+                               extractedAnalysis.match(/Score:\s*([\d.]+)/i);
+            if (scoreMatch) {
+              extractedScore = scoreMatch[1];
+            }
+          }
+        }
+
         const extractedExperience = findKeyDeep(data, ['experiencia', 'experience', 'experience_years', 'anos_experiencia', 'tempo_experiencia']);
         const extractedSkills = findKeyDeep(data, ['skills', 'habilidades', 'competencias', 'tecnologias', 'conhecimentos']);
         const extractedStrengths = findKeyDeep(data, ['strengths', 'pontos_fortes', 'fortalezas', 'qualidades']);
@@ -189,7 +203,7 @@ export default function BatchUpload({ apiKey, prompt, setPrompt, onComplete, onV
         const result = {
           id: Math.random().toString(36).substr(2, 9),
           name: extractedName || currentFile.name.replace('.pdf', ''),
-          score: typeof extractedScore === 'number' ? extractedScore : parseFloat(extractedScore) || 0,
+          score: typeof extractedScore === 'number' ? extractedScore : (extractedScore === 'N/A' ? 0 : parseFloat(extractedScore) || 0),
           analysis: extractedAnalysis || data.analise || 'Sem análise disponível',
           status: 'Em Análise',
           date: new Date().toISOString(),

@@ -45,13 +45,21 @@ export interface Candidate {
 
 interface CandidateListProps {
   candidates: Candidate[];
+  externalSearchTerm?: string;
   onViewProfile?: (candidate: Candidate) => void;
   onDelete?: (id: string) => void;
   onUpdateStatus?: (id: string, status: string) => void;
   onUpdateTags?: (id: string, tags: string[]) => void;
 }
 
-export default function CandidateList({ candidates, onViewProfile, onDelete, onUpdateStatus, onUpdateTags }: CandidateListProps) {
+export default function CandidateList({ 
+  candidates, 
+  externalSearchTerm = '', 
+  onViewProfile, 
+  onDelete, 
+  onUpdateStatus, 
+  onUpdateTags 
+}: CandidateListProps) {
   const [searchTerm, setSearchTerm] = React.useState('');
   const [jobFilter, setJobFilter] = React.useState('');
   const [tagFilter, setTagFilter] = React.useState('Todas');
@@ -72,9 +80,11 @@ export default function CandidateList({ candidates, onViewProfile, onDelete, onU
     return Array.from(tags).sort();
   }, [candidates]);
 
+  const effectiveSearchTerm = externalSearchTerm || searchTerm;
+
   const filteredCandidates = candidates.filter(c => 
-    (c.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    c.status.toLowerCase().includes(searchTerm.toLowerCase())) &&
+    (c.name.toLowerCase().includes(effectiveSearchTerm.toLowerCase()) ||
+    c.status.toLowerCase().includes(effectiveSearchTerm.toLowerCase())) &&
     (c.jobDescription?.toLowerCase().includes(jobFilter.toLowerCase()) || !jobFilter) &&
     (tagFilter === 'Todas' || c.tags?.includes(tagFilter)) &&
     c.score >= scoreLimit
@@ -110,7 +120,7 @@ export default function CandidateList({ candidates, onViewProfile, onDelete, onU
   // Reset to page 1 when filters change
   React.useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, jobFilter, scoreLimit]);
+  }, [searchTerm, jobFilter, scoreLimit, externalSearchTerm]);
 
   const toggleSelect = (id: string) => {
     const newSelected = new Set(selectedIds);

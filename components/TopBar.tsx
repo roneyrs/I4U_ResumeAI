@@ -7,9 +7,21 @@ interface TopBarProps {
   apiKey?: string;
   supabaseStatus?: 'connected' | 'disconnected' | 'not-configured';
   onMenuClick?: () => void;
+  searchTerm?: string;
+  setSearchTerm?: (term: string) => void;
+  setActiveTab?: (tab: string) => void;
+  activeTab?: string;
 }
 
-export default function TopBar({ apiKey, supabaseStatus, onMenuClick }: TopBarProps) {
+export default function TopBar({ 
+  apiKey, 
+  supabaseStatus, 
+  onMenuClick, 
+  searchTerm = '', 
+  setSearchTerm, 
+  setActiveTab,
+  activeTab = 'dashboard'
+}: TopBarProps) {
   return (
     <header className="fixed top-0 right-0 w-full lg:w-[calc(100%-16rem)] h-16 z-40 bg-white/90 backdrop-blur-xl flex items-center justify-between px-4 md:px-8 border-b border-slate-100 transition-all duration-300">
       <div className="flex items-center gap-4 md:gap-8">
@@ -25,12 +37,31 @@ export default function TopBar({ apiKey, supabaseStatus, onMenuClick }: TopBarPr
           <input
             type="text"
             placeholder="Buscar candidatos, vagas ou logs..."
-            className="w-full bg-slate-50 border-none rounded-lg py-2 pl-10 pr-4 text-sm focus:ring-2 focus:ring-primary/20 placeholder:text-slate-400 transition-all"
+            value={searchTerm}
+            onChange={(e) => {
+              setSearchTerm?.(e.target.value);
+              if (e.target.value && setActiveTab && activeTab !== 'candidates' && activeTab !== 'dashboard') {
+                // If searching from a tab that isn't the list or dashboard, maybe switch to list
+                 setActiveTab('candidates');
+              }
+              // Even better: if they start typing, just make sure they go to where the list is eventually
+            }}
+            className="w-full bg-slate-50 border border-slate-200 rounded-lg py-2 pl-10 pr-4 text-sm focus:ring-2 focus:ring-primary/20 placeholder:text-slate-400 transition-all outline-none"
           />
         </div>
         <nav className="hidden md:flex items-center gap-6 font-medium text-sm">
-          <a href="#" className="text-slate-500 hover:text-primary transition-all whitespace-nowrap">Recrutamento Direto</a>
-          <a href="#" className="text-slate-500 hover:text-primary transition-all whitespace-nowrap">Banco de Talentos</a>
+          <button 
+            onClick={() => setActiveTab?.('batch')}
+            className="text-slate-500 hover:text-primary transition-all whitespace-nowrap cursor-pointer"
+          >
+            Recrutamento Direto
+          </button>
+          <button 
+            onClick={() => setActiveTab?.('candidates')}
+            className="text-slate-500 hover:text-primary transition-all whitespace-nowrap cursor-pointer"
+          >
+            Banco de Talentos
+          </button>
         </nav>
       </div>
 

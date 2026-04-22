@@ -14,6 +14,7 @@ import { supabase } from '@/lib/supabase';
 
 export default function Home() {
   const [activeTab, setActiveTab] = React.useState('dashboard');
+  const [globalSearch, setGlobalSearch] = React.useState('');
   const [apiKey, setApiKey] = React.useState('');
   const [prompt, setPrompt] = React.useState('Analise para vaga de cientista de dados');
   const [results, setResults] = React.useState<Candidate[]>([]);
@@ -401,6 +402,10 @@ export default function Home() {
           apiKey={apiKey} 
           supabaseStatus={supabaseStatus}
           onMenuClick={() => setIsSidebarOpen(true)} 
+          searchTerm={globalSearch}
+          setSearchTerm={setGlobalSearch}
+          setActiveTab={setActiveTab}
+          activeTab={activeTab}
         />
         
         {/* Global Top Scrollbar */}
@@ -438,6 +443,7 @@ export default function Home() {
                   <div className="space-y-6 relative">
                     <CandidateList 
                       candidates={results} 
+                      externalSearchTerm={globalSearch}
                       onViewProfile={(c) => setViewingCandidate(c)}
                       onDelete={handleDeleteCandidate}
                       onUpdateStatus={handleUpdateStatus}
