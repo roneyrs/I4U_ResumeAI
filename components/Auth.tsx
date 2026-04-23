@@ -5,7 +5,11 @@ import { Mail, Lock, Loader2, AlertCircle, ArrowRight, ExternalLink } from 'luci
 import { supabase } from '@/lib/supabase';
 import { motion, AnimatePresence } from 'motion/react';
 
-export default function Auth() {
+interface AuthProps {
+  onVisitorMode?: () => void;
+}
+
+export default function Auth({ onVisitorMode }: AuthProps) {
   const [isLogin, setIsLogin] = React.useState(true);
   const [email, setEmail] = React.useState('');
   const [password, setPassword] = React.useState('');
@@ -126,6 +130,17 @@ export default function Auth() {
               >
                 {isLogin ? 'Não tem uma conta? Cadastre-se' : 'Já possui uma conta? Entre aqui'}
               </button>
+
+              {!supabase && (
+                <div className="pt-4">
+                  <button
+                    onClick={onVisitorMode}
+                    className="w-full py-3 border-2 border-slate-100 text-slate-400 rounded-2xl text-xs font-bold hover:bg-slate-50 hover:text-primary transition-all"
+                  >
+                    Entrar em Modo Visitante (Local Only)
+                  </button>
+                </div>
+              )}
 
               <div className="bg-slate-50 p-4 rounded-2xl flex flex-col items-center gap-2">
                 <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Aviso Importante</p>

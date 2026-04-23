@@ -99,20 +99,47 @@ export default function BatchUpload({ apiKey, prompt, setPrompt, onComplete, onV
         );
 
         const fileArrayBuffer = await currentFile.arrayBuffer();
-        const response = await axios.post(
-          "/api/analyze",
-          fileArrayBuffer,
-          {
-            headers: {
-              "x-api-key": apiKey.trim(),
-              "Content-Type": "application/pdf",
-            },
-            params: {
-              prompt: prompt,
-            },
-            timeout: 120000, // 120 seconds timeout on client
+        let response;
+        let attempts = 0;
+        const maxAttempts = 2; // Total of 2 attempts
+        
+        while (attempts < maxAttempts) {
+          try {
+            response = await axios.post(
+              "/api/analyze",
+              fileArrayBuffer,
+              {
+                headers: {
+                  "x-api-key": apiKey.trim(),
+                  "Content-Type": "application/pdf",
+                },
+                params: {
+                  prompt: prompt,
+                },
+                timeout: 250000, // 250 seconds timeout on client
+              }
+            );
+            break; // Success, exit retry loop
+          } catch (apiErr: any) {
+            attempts++;
+            const isTimeout = apiErr.code === 'ECONNABORTED';
+            const is500 = apiErr.response?.status === 500;
+            
+            if (attempts < maxAttempts && (isTimeout || is500)) {
+              console.warn(`Tentativa ${attempts} falhou (${isTimeout ? 'Timeout' : '500'}). Tentando novamente em 3s...`);
+              setFiles(prev =>
+                prev.map((f, idx) =>
+                  idx === i ? { ...f, stage: `Retentando análise (${attempts}/${maxAttempts})...` } : f
+                )
+              );
+              await new Promise(r => setTimeout(r, 3000));
+              continue;
+            }
+            throw apiErr; // Rethrow if no more retries or different error
           }
-        );
+        }
+
+        if (!response) throw new Error("Falha ao obter resposta da API após retentativas.");
 
         // Update to Stage 3: Score Calculation
         setFiles(prev =>
@@ -165,8 +192,44 @@ export default function BatchUpload({ apiKey, prompt, setPrompt, onComplete, onV
           return null;
         };
 
-        const extractedName = findKeyDeep(data, ['nome', 'name', 'full_name', 'candidato', 'display_name', 'candidate_name', 'nome_completo']);
+        const extractedAnalysis = findKeyDeep(data, ['analise', 'analysis', 'summary', 'resumo', 'feedback', 'comentario']);
+
+        const extractedName = findKeyDeep(data, [
+          'nome', 'name', 'full_name', 'candidato', 'display_name', 'candidate_name', 'nome_completo', 
+          'candidato_nome', 'nome_candidato', 'perfil_nome', 'candidate'
+        ]);
         
+        let finalName = extractedName;
+
+        // Fallback: If no name found in keys, try to extract from analysis text
+        if (!finalName && extractedAnalysis && typeof extractedAnalysis === 'string') {
+          // Comprehensive regex for name extraction
+          const nameMatch = 
+            // Matches: ***Nome do Candidato:*** Name or **Nome do Candidato:** Name
+            extractedAnalysis.match(/Nome\s+d[oa]\s+Candidat[oa]:?\*+\s*([^\n\r*]+)/i) ||
+            // Matches: ***Candidat[oa]:*** Name
+            extractedAnalysis.match(/Candidat[oa]:?\*+\s*([^\n\r*]+)/i) || 
+            // Matches: ***Nome:*** Name
+            extractedAnalysis.match(/Nome:?\*+\s*([^\n\r*]+)/i) ||
+            // Matches: **Candidat[oa]** Name
+            extractedAnalysis.match(/\*+Candidat[oa]:?\*+\s*([^\n\r*]+)/i) || 
+            // Matches: Candidat[oa]: Name
+            extractedAnalysis.match(/Candidat[oa]:\s*([^\n\r*]+)/i) || 
+            // Matches: Nome: Name
+            extractedAnalysis.match(/Nome:\s*([^\n\r*]+)/i);
+
+          if (nameMatch) {
+            finalName = nameMatch[1].trim();
+          }
+        }
+
+        // Clean up common filename-like artifacts if it falls back to filename
+        const cleanFileName = currentFile.name
+          .replace(/\.pdf$/i, '')
+          .replace(/[_-]/g, ' ')
+          .replace(/\s+/g, ' ')
+          .trim();
+
         // Try key search first, then regex fallback
         let extractedEmail = findKeyDeep(data, ['email', 'e_mail', 'e-mail', 'mail', 'user_email', 'contato_email', 'email_candidato', 'address_email']);
         if (!extractedEmail) {
@@ -175,17 +238,29 @@ export default function BatchUpload({ apiKey, prompt, setPrompt, onComplete, onV
 
         let extractedPhone = findKeyDeep(data, ['telefone', 'phone', 'tel', 'celular', 'mobile', 'contact', 'whatsapp', 'contato_telefone', 'phone_number', 'telephone']);
         if (!extractedPhone) {
+          // Try to look for phone in analysis text (e.g., Telefone: +55 (041) 9 9894-0114)
+          if (extractedAnalysis && typeof extractedAnalysis === 'string') {
+            const phoneInText = extractedAnalysis.match(/Telefone:?\*+\s*([\d\s()+-]+)/i) ||
+                               extractedAnalysis.match(/\*+Telefone:?\*+\s*([\d\s()+-]+)/i) ||
+                               extractedAnalysis.match(/Telefone:\s*([\d\s()+-]+)/i) ||
+                               extractedAnalysis.match(/Contato:\s*([\d\s()+-]+)/i) ||
+                               extractedAnalysis.match(/Phone:\s*([\d\s()+-]+)/i);
+            if (phoneInText) {
+              extractedPhone = phoneInText[1].trim();
+            }
+          }
+        }
+        
+        if (!extractedPhone) {
           extractedPhone = findByRegex(data, /(\+?\d{1,3}[-.\s]?)?\(?\d{2,3}\)?[-.\s]?\d{4,5}[-.\s]?\d{4}/);
         }
 
         const extractedRole = findKeyDeep(data, ['cargo', 'role', 'position', 'job_title', 'headline', 'ocupacao']);
         let extractedScore = findKeyDeep(data, ['pontuacao', 'score', 'rating', 'match', 'percentual', 'aderencia']);
-        const extractedAnalysis = findKeyDeep(data, ['analise', 'analysis', 'summary', 'resumo', 'feedback', 'comentario']);
-
+        
         // Fallback for "N/A" score or missing score
         if (extractedScore === 'N/A' || extractedScore === null || extractedScore === undefined || extractedScore === '') {
           if (extractedAnalysis && typeof extractedAnalysis === 'string') {
-            // Try to find score in the analysis text (e.g., **Pontuacao:** 9.0)
             const scoreMatch = extractedAnalysis.match(/\*\*Pontua[cç][aã]o:\*\*\s*([\d.]+)/i) || 
                                extractedAnalysis.match(/Pontua[cç][aã]o:\s*([\d.]+)/i) ||
                                extractedAnalysis.match(/Score:\s*([\d.]+)/i);
@@ -202,7 +277,8 @@ export default function BatchUpload({ apiKey, prompt, setPrompt, onComplete, onV
 
         const result = {
           id: Math.random().toString(36).substr(2, 9),
-          name: extractedName || currentFile.name.replace('.pdf', ''),
+          name: finalName || 'Candidato não identificado',
+          fileName: currentFile.name,
           score: typeof extractedScore === 'number' ? extractedScore : (extractedScore === 'N/A' ? 0 : parseFloat(extractedScore) || 0),
           analysis: extractedAnalysis || data.analise || 'Sem análise disponível',
           status: 'Em Análise',
@@ -225,7 +301,7 @@ export default function BatchUpload({ apiKey, prompt, setPrompt, onComplete, onV
         // Update to Stage 4: Done
         setFiles(prev =>
           prev.map((f, idx) =>
-            idx === i ? { ...f, status: "done", progress: 100, stage: "Análise concluída", result: data } : f
+            idx === i ? { ...f, status: "done", progress: 100, stage: "Análise concluída", result: result } : f
           )
         );
       } catch (err: any) {
@@ -439,7 +515,7 @@ export default function BatchUpload({ apiKey, prompt, setPrompt, onComplete, onV
                         <div className="mt-4 pt-4 border-t border-slate-200 flex items-center justify-between">
                           <div className="flex items-center gap-2">
                             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Score IA:</span>
-                            <span className="text-sm font-bold text-primary">{f.result?.pontuacao || '0.0'}</span>
+                            <span className="text-sm font-bold text-primary">{f.result?.score?.toFixed(1) || '0.0'}</span>
                           </div>
                           <button 
                             onClick={() => onViewDetails?.(f.result)}

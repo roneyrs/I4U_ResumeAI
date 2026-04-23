@@ -100,9 +100,9 @@ export default function Sidebar({ activeTab, setActiveTab, isOpen, onClose, user
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-sm font-semibold truncate leading-tight">
-              {user?.email?.split('@')[0] || 'Usuário Admin'}
+              roney.souza
             </p>
-            <p className="text-[10px] text-slate-400 truncate tracking-tight">Plano Enterprise</p>
+            <p className="text-[10px] text-slate-400 truncate tracking-tight uppercase font-bold">Plano Enterprise</p>
           </div>
           <button 
             onClick={handleLogout}

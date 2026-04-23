@@ -17,12 +17,57 @@ import {
   ChevronRight, 
   TrendingUp,
   X,
-  Plus
+  Plus,
+  Copy,
+  Check
 } from 'lucide-react';
-import { motion } from 'motion/react';
+import { motion, AnimatePresence } from 'motion/react';
 
 import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
+
+const CopyButton = ({ text }: { text: string }) => {
+  const [copied, setCopied] = React.useState(false);
+
+  const handleCopy = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      console.error('Failed to copy text: ', err);
+    }
+  };
+
+  return (
+    <div className="relative inline-flex items-center ml-2">
+      <button
+        onClick={handleCopy}
+        className="p-1 rounded-md hover:bg-slate-100 text-slate-400 hover:text-primary transition-all focus:outline-none"
+        title="Copiar"
+      >
+        {copied ? (
+          <Check className="w-3.5 h-3.5 text-green-500" />
+        ) : (
+          <Copy className="w-3.5 h-3.5" />
+        )}
+      </button>
+      <AnimatePresence>
+        {copied && (
+          <motion.span
+            initial={{ opacity: 0, y: 10, scale: 0.8 }}
+            animate={{ opacity: 1, y: -20, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.8 }}
+            className="absolute left-1/2 -translate-x-1/2 bg-slate-800 text-white text-[10px] font-bold px-2 py-1 rounded shadow-xl pointer-events-none z-50 whitespace-nowrap"
+          >
+            Copiado!
+          </motion.span>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+};
 
 export interface Candidate {
   id: string;
@@ -36,6 +81,7 @@ export interface Candidate {
   role?: string;
   jobDescription?: string;
   experienceYears?: string;
+  fileName?: string;
   skills?: string[];
   attentionAreas?: string[];
   strengths?: string[];
@@ -228,7 +274,7 @@ Este arquivo contém os dados estruturados extraídos do documento original.]
             </button>
             <button 
               onClick={() => handleExport(false)}
-              className="flex items-center gap-2 px-6 py-2.5 bg-primary text-white rounded-xl text-sm font-bold shadow-lg shadow-primary/20 hover:brightness-110 active:scale-95 transition-all"
+              className="flex items-center gap-2 px-6 py-2.5 bg-primary text-white rounded-xl text-sm font-bold shadow-lg shadow-primary/30 hover:brightness-110 hover:shadow-primary/40 active:scale-[0.98] transition-all"
             >
               <Folder className="w-4 h-4 fill-current" />
               Exportar Tudo (Filtro)
@@ -242,10 +288,10 @@ Este arquivo contém os dados estruturados extraídos do documento original.]
 
       {/* Filters Section */}
       <div className="grid grid-cols-12 gap-4 sm:gap-6 mb-8">
-        <div className="col-span-12 sm:col-span-6 lg:col-span-3 bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
+        <div className="col-span-12 sm:col-span-6 lg:col-span-3 bg-white p-6 rounded-2xl border border-slate-100 shadow-sm transition-all hover:ring-2 hover:ring-slate-100">
           <div className="flex items-center justify-between mb-6">
-            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Limite de Score Neural</label>
-            <span className="px-3 py-1 bg-primary/10 text-primary rounded-lg font-bold text-sm">{scoreLimit.toFixed(1)}+</span>
+            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.1em]">Limite de Score Neural</label>
+            <span className="px-3 py-1 bg-primary/10 text-primary rounded-lg font-bold text-sm leading-none flex items-center justify-center">{scoreLimit.toFixed(1)}+</span>
           </div>
           <input 
             type="range" 
@@ -258,40 +304,40 @@ Este arquivo contém os dados estruturados extraídos do documento original.]
           />
         </div>
 
-        <div className="col-span-12 sm:col-span-6 lg:col-span-4 bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
-          <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-4">Buscar Candidato</label>
+        <div className="col-span-12 sm:col-span-6 lg:col-span-4 bg-white p-6 rounded-2xl border border-slate-100 shadow-sm transition-all hover:ring-2 hover:ring-slate-100">
+          <label className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.1em] block mb-4">Buscar Candidato</label>
           <div className="relative">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
             <input 
               type="text" 
               placeholder="Nome ou status..."
-              className="w-full pl-11 pr-4 py-3 bg-slate-50 border-none rounded-xl text-sm font-bold text-slate-700 focus:ring-2 focus:ring-primary/20"
+              className="w-full pl-11 pr-4 py-3 bg-slate-50 border-none rounded-xl text-sm font-bold text-slate-700 focus:ring-2 focus:ring-primary/20 transition-all"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
         </div>
 
-        <div className="col-span-12 sm:col-span-6 lg:col-span-3 bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
-          <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-4">Descrição da Vaga</label>
+        <div className="col-span-12 sm:col-span-6 lg:col-span-3 bg-white p-6 rounded-2xl border border-slate-100 shadow-sm transition-all hover:ring-2 hover:ring-slate-100">
+          <label className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.1em] block mb-4">Descrição da Vaga</label>
           <div className="relative">
             <Filter className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
             <input 
               type="text" 
               placeholder="Filtrar por vaga..."
-              className="w-full pl-11 pr-4 py-3 bg-slate-50 border-none rounded-xl text-sm font-bold text-slate-700 focus:ring-2 focus:ring-primary/20"
+              className="w-full pl-11 pr-4 py-3 bg-slate-50 border-none rounded-xl text-sm font-bold text-slate-700 focus:ring-2 focus:ring-primary/20 transition-all"
               value={jobFilter}
               onChange={(e) => setJobFilter(e.target.value)}
             />
           </div>
         </div>
 
-        <div className="col-span-12 sm:col-span-6 lg:col-span-2 bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
-          <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-4">Filtrar por Tag</label>
+        <div className="col-span-12 sm:col-span-6 lg:col-span-2 bg-white p-6 rounded-2xl border border-slate-100 shadow-sm transition-all hover:ring-2 hover:ring-slate-100">
+          <label className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.1em] block mb-4">Filtrar por Tag</label>
           <select 
             value={tagFilter}
             onChange={(e) => setTagFilter(e.target.value)}
-            className="w-full px-4 py-3 bg-slate-50 border-none rounded-xl text-sm font-bold text-slate-700 focus:ring-2 focus:ring-primary/20 cursor-pointer"
+            className="w-full px-4 py-3 bg-slate-50 border-none rounded-xl text-sm font-bold text-slate-700 focus:ring-2 focus:ring-primary/20 cursor-pointer transition-all"
           >
             <option value="Todas">Todas as Tags</option>
             {allTags.map(tag => (
@@ -326,8 +372,12 @@ Este arquivo contém os dados estruturados extraídos do documento original.]
             <tbody className="divide-y divide-slate-50">
               {filteredCandidates.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-8 py-16 text-center text-slate-400 italic text-sm">
-                    {searchTerm || jobFilter ? 'Nenhum candidato encontrado para esta busca.' : 'Nenhum candidato atende aos critérios de score.'}
+                  <td colSpan={7} className="px-8 py-24 text-center">
+                     <div className="flex flex-col items-center justify-center space-y-2 text-slate-400">
+                        <p className="italic text-sm font-medium">
+                          Nenhum candidato atende aos critérios de score.
+                        </p>
+                     </div>
                   </td>
                 </tr>
               ) : (
@@ -353,18 +403,27 @@ Este arquivo contém os dados estruturados extraídos do documento original.]
                         </div>
                         <div>
                           <p className="text-sm font-bold text-slate-900">{c.name}</p>
-                          <p className="text-xs text-slate-500">{c.role || 'Arquiteta de Sistemas Sênior'}</p>
+                          <p className="text-[10px] text-slate-400 italic mb-0.5">{c.fileName || 'Arquivo não identificado'}</p>
+                          {c.role && c.role !== 'Não identificado' && (
+                            <p className="text-xs text-slate-500">{c.role}</p>
+                          )}
                         </div>
                       </div>
                     </td>
                     <td className="px-8 py-6">
-                      <div className="space-y-0.5">
-                        <p className="text-sm font-medium text-slate-700">
-                          {c.email && c.email !== 'Não identificado' ? c.email : <span className="text-slate-300 italic">E-mail não encontrado</span>}
-                        </p>
-                        <p className="text-xs text-slate-400">
-                          {c.phone && c.phone !== 'Não identificado' ? c.phone : <span className="text-slate-300 italic">Telefone não encontrado</span>}
-                        </p>
+                      <div className="space-y-1">
+                        <div className="flex items-center">
+                          <p className="text-sm font-medium text-slate-700">
+                            {c.email && c.email !== 'Não identificado' ? c.email : <span className="text-slate-300 italic">E-mail não encontrado</span>}
+                          </p>
+                          {c.email && c.email !== 'Não identificado' && <CopyButton text={c.email} />}
+                        </div>
+                        <div className="flex items-center">
+                          <p className="text-xs text-slate-400">
+                            {c.phone && c.phone !== 'Não identificado' ? c.phone : <span className="text-slate-300 italic">Telefone não encontrado</span>}
+                          </p>
+                          {c.phone && c.phone !== 'Não identificado' && <CopyButton text={c.phone} />}
+                        </div>
                       </div>
                     </td>
                     <td className="px-8 py-6">
@@ -544,16 +603,16 @@ Este arquivo contém os dados estruturados extraídos do documento original.]
           </div>
         </div>
 
-        <div className="col-span-12 lg:col-span-4 bg-secondary p-8 rounded-3xl shadow-xl relative overflow-hidden flex flex-col justify-between">
-          <div className="absolute top-0 right-0 w-32 h-32 bg-primary/20 rounded-full blur-2xl -mr-16 -mt-16"></div>
+        <div className="col-span-12 lg:col-span-4 bg-[#1e293b] p-8 rounded-3xl shadow-xl border border-slate-700/50 relative overflow-hidden flex flex-col justify-between group">
+          <div className="absolute top-0 right-0 w-48 h-48 bg-primary/10 rounded-full blur-3xl -mr-24 -mt-24 group-hover:bg-primary/20 transition-all duration-500"></div>
           <div>
-            <span className="px-3 py-1 bg-primary/20 text-primary rounded-lg text-[10px] font-bold uppercase tracking-widest">Ação Rápida</span>
-            <h3 className="text-2xl font-bold text-white mt-4 mb-2">Automatizar Migração de Pasta</h3>
-            <p className="text-slate-400 text-sm leading-relaxed">
-              Mover candidatos com Score Neural {'>'} 9.4 para &apos;Revisão Executiva&apos; imediatamente.
+            <span className="px-3 py-1 bg-primary/10 text-primary rounded-lg text-[10px] font-extrabold uppercase tracking-[0.2em] border border-primary/20">Ação Rápida</span>
+            <h3 className="text-2xl font-bold text-white mt-4 mb-3 tracking-tight">Automatizar Migração de Pasta</h3>
+            <p className="text-slate-400 text-sm leading-relaxed font-medium">
+              Mover candidatos com Score Neural &gt; 9.4 para &apos;Revisão Executiva&apos; imediatamente.
             </p>
           </div>
-          <button className="w-full py-4 bg-primary text-white rounded-xl font-bold shadow-lg shadow-primary/20 hover:brightness-110 active:scale-95 transition-all mt-8">
+          <button className="w-full py-4 bg-primary text-white rounded-xl font-bold shadow-lg shadow-primary/30 hover:brightness-110 hover:shadow-primary/40 active:scale-[0.98] transition-all mt-10">
             Executar Migração
           </button>
         </div>

@@ -29,7 +29,7 @@ export async function POST(req: NextRequest) {
       },
       // Important: validateStatus allows us to handle 400/401 gracefully
       validateStatus: () => true, 
-      timeout: 120000, // 2 minutes
+      timeout: 240000, // 4 minutes
     });
 
     console.log(`[Proxy] I4U API Response Status: ${response.status}`);

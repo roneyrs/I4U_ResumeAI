@@ -66,34 +66,32 @@ export default function TopBar({
       </div>
 
       <div className="flex items-center gap-4">
-        {supabaseStatus === 'connected' && (
+        {supabaseStatus === 'connected' ? (
           <div className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 text-blue-600 rounded-full text-[10px] font-bold uppercase tracking-widest">
             <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></span>
-            DB Conectado
+            DB CONECTADO
           </div>
-        )}
-        {supabaseStatus === 'disconnected' && (
-          <div className="flex items-center gap-2 px-3 py-1.5 bg-red-50 text-red-600 rounded-full text-[10px] font-bold uppercase tracking-widest">
-            <span className="w-2 h-2 rounded-full bg-red-500"></span>
-            DB Erro
-          </div>
-        )}
-        {supabaseStatus === 'not-configured' && (
+        ) : supabaseStatus === 'not-configured' ? (
           <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-100 text-slate-500 rounded-full text-[10px] font-bold uppercase tracking-widest">
             <span className="w-2 h-2 rounded-full bg-slate-400"></span>
-            DB Offline
+            DB NÃO CONFIGURADO
+          </div>
+        ) : (
+          <div className="flex items-center gap-2 px-3 py-1.5 bg-red-50 text-red-600 rounded-full text-[10px] font-bold uppercase tracking-widest">
+            <span className="w-2 h-2 rounded-full bg-red-500"></span>
+            DB OFFLINE
           </div>
         )}
         
         {apiKey ? (
-          <div className="flex items-center gap-2 px-3 py-1.5 bg-green-50 text-green-600 rounded-full text-xs font-semibold">
+          <div className="flex items-center gap-2 px-3 py-1.5 bg-green-50 text-green-600 rounded-full text-[10px] font-bold uppercase tracking-widest">
             <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
-            API Conectada
+            API CONECTADA
           </div>
         ) : (
-          <div className="flex items-center gap-2 px-3 py-1.5 bg-red-50 text-red-600 rounded-full text-xs font-semibold">
+          <div className="flex items-center gap-2 px-3 py-1.5 bg-red-50 text-red-600 rounded-full text-[10px] font-bold uppercase tracking-widest">
             <span className="w-2 h-2 rounded-full bg-red-500"></span>
-            API Desconectada
+            API DESCONECTADA
           </div>
         )}
         <button className="p-2 text-slate-500 hover:bg-slate-50 rounded-lg transition-all">

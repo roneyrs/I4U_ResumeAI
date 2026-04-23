@@ -24,30 +24,45 @@ export const supabase = (isValidUrl(supabaseUrl) && supabaseAnonKey)
 /**
  * MIGRATION SQL (Run this in Supabase SQL Editor):
  * 
- * -- 1. Update candidates table to support multi-tenancy
- * ALTER TABLE candidates ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES auth.users(id);
- * 
- * -- 2. Enable RLS
- * ALTER TABLE candidates ENABLE ROW LEVEL SECURITY;
- * 
- * -- 3. Create RLS Policies
- * CREATE POLICY "Users can only see their own candidates" 
- * ON candidates FOR SELECT 
- * USING (auth.uid() = user_id);
- * 
- * CREATE POLICY "Users can only insert their own candidates" 
- * ON candidates FOR INSERT 
- * WITH CHECK (auth.uid() = user_id);
- * 
- * CREATE POLICY "Users can only update their own candidates" 
- * ON candidates FOR UPDATE 
- * USING (auth.uid() = user_id);
- * 
- * CREATE POLICY "Users can only delete their own candidates" 
- * ON candidates FOR DELETE 
- * USING (auth.uid() = user_id);
- * 
- * -- Repeat similar for 'jobs' table
- * ALTER TABLE jobs ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES auth.users(id);
- * ALTER TABLE jobs ENABLE ROW LEVEL SECURITY;
+// 1. Update candidates table to support multi-tenancy and all features
+// CREATE TABLE IF NOT EXISTS candidates (
+//   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+//   created_at TIMESTAMPTZ DEFAULT now(),
+//   user_id UUID REFERENCES auth.users(id),
+//   name TEXT NOT NULL,
+//   email TEXT,
+//   phone TEXT,
+//   score FLOAT,
+//   role TEXT,
+//   status TEXT DEFAULT 'Em Análise',
+//   analysis TEXT,
+//   job_description TEXT,
+//   experience_years TEXT,
+//   file_name TEXT,
+//   skills JSONB DEFAULT '[]'::jsonb,
+//   strengths JSONB DEFAULT '[]'::jsonb,
+//   attention_areas JSONB DEFAULT '[]'::jsonb,
+//   tags JSONB DEFAULT '[]'::jsonb
+// );
+// 
+// -- Enable RLS
+// ALTER TABLE candidates ENABLE ROW LEVEL SECURITY;
+// 
+// -- Create RLS Policies
+// CREATE POLICY "Users can only see their own candidates" ON candidates FOR SELECT USING (auth.uid() = user_id);
+// CREATE POLICY "Users can only insert their own candidates" ON candidates FOR INSERT WITH CHECK (auth.uid() = user_id);
+// CREATE POLICY "Users can only update their own candidates" ON candidates FOR UPDATE USING (auth.uid() = user_id);
+// CREATE POLICY "Users can only delete their own candidates" ON candidates FOR DELETE USING (auth.uid() = user_id);
+// 
+// -- Repeat for jobs table
+// CREATE TABLE IF NOT EXISTS jobs (
+//   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+//   created_at TIMESTAMPTZ DEFAULT now(),
+//   user_id UUID REFERENCES auth.users(id),
+//   title TEXT,
+//   description TEXT
+// );
+// ALTER TABLE jobs ENABLE ROW LEVEL SECURITY;
+// CREATE POLICY "Users can only see their own jobs" ON jobs FOR SELECT USING (auth.uid() = user_id);
+// CREATE POLICY "Users can only insert their own jobs" ON jobs FOR INSERT WITH CHECK (auth.uid() = user_id);
  */

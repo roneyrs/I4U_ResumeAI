@@ -25,6 +25,7 @@ export default function Home() {
   const [session, setSession] = React.useState<any>(null);
   const [authLoading, setAuthLoading] = React.useState(true);
   const [supabaseStatus, setSupabaseStatus] = React.useState<'connected' | 'disconnected' | 'not-configured'>('not-configured');
+  const [isVisitorMode, setIsVisitorMode] = React.useState(false);
   const [missingColumns, setMissingColumns] = React.useState<string[]>([]);
   const missingColumnsRef = React.useRef<string[]>([]);
 
@@ -87,6 +88,8 @@ export default function Home() {
           const { data } = client.auth.onAuthStateChange((_event, session) => {
             if (isMounted) {
               setSession(session);
+              // If user logs in, we probably want to try to fetch from DB
+              if (session) setIsVisitorMode(false);
             }
           });
           
@@ -115,15 +118,24 @@ export default function Home() {
   React.useEffect(() => {
     if (authLoading) return;
 
-    if (session) {
-      localStorage.setItem('i4u_session_active', 'true');
+    if (session || isVisitorMode) {
+      if (session) localStorage.setItem('i4u_session_active', 'true');
+      
+      const savedApiKey = localStorage.getItem('i4u_api_key');
+      const savedPrompt = localStorage.getItem('i4u_last_prompt');
+      const localResults = localStorage.getItem('i4u_results');
+
+      if (savedApiKey) setApiKey(savedApiKey);
+      if (savedPrompt) setPrompt(savedPrompt);
+      if (localResults) {
+        try {
+          const parsed = JSON.parse(localResults);
+          if (parsed.length > 0) setResults(parsed);
+        } catch (e) {
+          console.error('Error parsing local results', e);
+        }
+      }
     }
-
-    const savedApiKey = localStorage.getItem('i4u_api_key');
-    const savedPrompt = localStorage.getItem('i4u_last_prompt');
-
-    if (savedApiKey) setApiKey(savedApiKey);
-    if (savedPrompt) setPrompt(savedPrompt);
 
     const fetchCandidates = async () => {
       const client = supabase;
@@ -165,6 +177,7 @@ export default function Home() {
           ...c,
           jobDescription: c.job_description, // Map snake_case to camelCase
           experienceYears: c.experience_years,
+          fileName: c.file_name,
           attentionAreas: c.attention_areas || [],
           skills: c.skills || [],
           strengths: c.strengths || [],
@@ -186,7 +199,7 @@ export default function Home() {
       try {
         console.log('Testing Supabase connection and schema...');
         // Check for specific columns that might be missing
-        const requiredColumns = ['attention_areas', 'tags', 'experience_years', 'job_description', 'skills', 'strengths'];
+        const requiredColumns = ['attention_areas', 'tags', 'experience_years', 'job_description', 'skills', 'strengths', 'file_name'];
         const missing: string[] = [];
 
         for (const col of requiredColumns) {
@@ -225,7 +238,7 @@ export default function Home() {
       }
     };
     testConnection();
-  }, []);
+  }, [session, isVisitorMode, authLoading]);
 
   // Save data to localStorage whenever it changes
   React.useEffect(() => {
@@ -254,6 +267,7 @@ export default function Home() {
       email: r.email,
       phone: r.phone,
       role: r.role,
+      file_name: r.fileName,
       skills: r.skills || [],
       strengths: r.strengths || [],
       experience_years: r.experienceYears,
@@ -276,16 +290,24 @@ export default function Home() {
     console.log('Final object to insert into Supabase:', JSON.stringify(resultsForSupabase, null, 2));
 
     const client = supabase;
-    if (!client || !session) {
+    if (!client || !session || isVisitorMode) {
       console.warn('Supabase not configured or no session. Saving to local state only.');
       const localResults = allData.map((r, i) => ({
         ...r,
         id: `temp-${Date.now()}-${i}`,
         jobDescription: r.job_description,
         experienceYears: r.experience_years,
-        attentionAreas: r.attention_areas
+        attentionAreas: r.attention_areas,
+        // Ensure these match Candidate interface
+        skills: r.skills || [],
+        strengths: r.strengths || [],
+        tags: r.tags || []
       }));
-      setResults(prev => [...localResults, ...prev]);
+      setResults(prev => {
+        const next = [...localResults, ...prev];
+        localStorage.setItem('i4u_results', JSON.stringify(next));
+        return next;
+      });
       return;
     }
 
@@ -306,7 +328,9 @@ export default function Home() {
 
         if (error && error.code === 'PGRST204') {
           console.warn(`Insertion attempt ${attempts + 1} failed due to missing column. Attempting to identify and retry...`);
-          const match = error.message.match(/column '([^']+)'/);
+          // Match 'name' column or column 'name' or column "name"
+          const match = error.message.match(/column ['"]([^'"]+)['"]/) || 
+                        error.message.match(/['"]([^'"]+)['"] column/);
           const missingCol = match ? match[1] : null;
           
           if (missingCol && !currentMissing.includes(missingCol)) {
@@ -342,12 +366,17 @@ export default function Home() {
           ...c,
           jobDescription: c.job_description,
           experienceYears: c.experience_years,
+          fileName: c.file_name,
           attentionAreas: c.attention_areas || [],
           skills: c.skills || [],
           strengths: c.strengths || [],
           tags: c.tags || []
         }));
-        setResults(prev => [...mappedData, ...prev]);
+        setResults(prev => {
+          const next = [...mappedData, ...prev];
+          localStorage.setItem('i4u_results', JSON.stringify(next));
+          return next;
+        });
       }
 
       // Also save the job to the jobs table
@@ -365,7 +394,11 @@ export default function Home() {
         experienceYears: r.experience_years,
         attentionAreas: r.attention_areas
       }));
-      setResults(prev => [...localResults, ...prev]);
+      setResults(prev => {
+        const next = [...localResults, ...prev];
+        localStorage.setItem('i4u_results', JSON.stringify(next));
+        return next;
+      });
     }
   };
 
@@ -465,8 +498,8 @@ export default function Home() {
     );
   }
 
-  if (!session && supabase) {
-    return <Auth />;
+  if (!session && !isVisitorMode) {
+    return <Auth onVisitorMode={() => setIsVisitorMode(true)} />;
   }
 
   return (

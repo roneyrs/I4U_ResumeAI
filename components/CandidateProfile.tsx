@@ -107,19 +107,24 @@ export default function CandidateProfile({ candidate, onClose, onDelete, onUpdat
                   />
                 </div>
                 <div className="absolute -bottom-2 -right-2 w-8 h-8 sm:w-10 sm:h-10 bg-primary text-white rounded-lg sm:rounded-xl flex items-center justify-center font-bold text-xs sm:text-sm border-4 border-white shadow-lg">
-                  {candidate.score.toFixed(1)}
+                  {(candidate.score || 0).toFixed(1)}
                 </div>
               </div>
 
               <div className="flex-1 text-center sm:text-left">
-                <div className="flex flex-col sm:flex-row items-center gap-2 sm:gap-3 mb-2">
+                <div className="flex flex-col sm:flex-row items-center gap-2 sm:gap-3 mb-1">
                   <h2 className="text-2xl sm:text-4xl font-bold text-slate-900 tracking-tight">{candidate.name}</h2>
                   <span className="px-2 py-0.5 bg-slate-900 text-white text-[8px] sm:text-[10px] font-bold uppercase tracking-widest rounded-lg">Especialista Verificada</span>
                 </div>
+                <p className="text-xs text-slate-400 italic mb-3 sm:mb-4">{candidate.fileName || 'Arquivo não identificado'}</p>
                 <div className="flex flex-wrap justify-center sm:justify-start items-center gap-3 sm:gap-6 text-primary font-bold mb-4 sm:mb-6 text-sm sm:text-base">
-                  <span>{candidate.role || 'Arquiteta de Software Sênior'}</span>
-                  <div className="hidden sm:block w-1.5 h-1.5 rounded-full bg-slate-300"></div>
-                  <span className="hidden sm:inline">{candidate.experienceYears || '12+'} Anos de Experiência</span>
+                  {candidate.role && candidate.role !== 'Não identificado' && (
+                    <>
+                      <span>{candidate.role}</span>
+                      <div className="hidden sm:block w-1.5 h-1.5 rounded-full bg-slate-300"></div>
+                    </>
+                  )}
+                  <span className="hidden sm:inline">{candidate.experienceYears || '0'} Anos de Experiência</span>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
@@ -314,7 +319,7 @@ export default function CandidateProfile({ candidate, onClose, onDelete, onUpdat
                   <div key={item.label}>
                     <div className="flex justify-between items-end mb-2 sm:mb-3">
                       <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest max-w-[140px]">{item.label}</span>
-                      <span className="text-base sm:text-lg font-bold text-primary">{item.score.toFixed(1)}/10</span>
+                      <span className="text-base sm:text-lg font-bold text-primary">{(item.score || 0).toFixed(1)}/10</span>
                     </div>
                     <div className="h-1.5 sm:h-2 w-full bg-slate-100 rounded-full overflow-hidden">
                       <motion.div 
