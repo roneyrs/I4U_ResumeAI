@@ -238,13 +238,13 @@ export default function BatchUpload({ apiKey, prompt, setPrompt, onComplete, onV
 
         let extractedPhone = findKeyDeep(data, ['telefone', 'phone', 'tel', 'celular', 'mobile', 'contact', 'whatsapp', 'contato_telefone', 'phone_number', 'telephone']);
         if (!extractedPhone) {
-          // Try to look for phone in analysis text (e.g., Telefone: +55 (041) 9 9894-0114)
+          // Try to look for phone in analysis text (e.g., Telefone: +55 (041) 9 9894-0114 or 9.9111-9280)
           if (extractedAnalysis && typeof extractedAnalysis === 'string') {
-            const phoneInText = extractedAnalysis.match(/Telefone:?\*+\s*([\d\s()+-]+)/i) ||
-                               extractedAnalysis.match(/\*+Telefone:?\*+\s*([\d\s()+-]+)/i) ||
-                               extractedAnalysis.match(/Telefone:\s*([\d\s()+-]+)/i) ||
-                               extractedAnalysis.match(/Contato:\s*([\d\s()+-]+)/i) ||
-                               extractedAnalysis.match(/Phone:\s*([\d\s()+-]+)/i);
+            const phoneInText = extractedAnalysis.match(/Telefone:?\*+\s*([\d\s().+-]+)/i) ||
+                               extractedAnalysis.match(/\*+Telefone:?\*+\s*([\d\s().+-]+)/i) ||
+                               extractedAnalysis.match(/Telefone:\s*([\d\s().+-]+)/i) ||
+                               extractedAnalysis.match(/Contato:\s*([\d\s().+-]+)/i) ||
+                               extractedAnalysis.match(/Phone:\s*([\d\s().+-]+)/i);
             if (phoneInText) {
               extractedPhone = phoneInText[1].trim();
             }
@@ -252,7 +252,8 @@ export default function BatchUpload({ apiKey, prompt, setPrompt, onComplete, onV
         }
         
         if (!extractedPhone) {
-          extractedPhone = findByRegex(data, /(\+?\d{1,3}[-.\s]?)?\(?\d{2,3}\)?[-.\s]?\d{4,5}[-.\s]?\d{4}/);
+          // More flexible regex to handle various formats including dots as separators (e.g. 9.9111-9280)
+          extractedPhone = findByRegex(data, /(\+?\d{1,3}[-.\s]?)?\(?\d{2,3}\)?[-.\s]?[\d.\s-]{8,15}/);
         }
 
         const extractedRole = findKeyDeep(data, ['cargo', 'role', 'position', 'job_title', 'headline', 'ocupacao']);
