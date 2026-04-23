@@ -352,7 +352,7 @@ export default function Home() {
 
       // Also save the job to the jobs table
       console.log('Saving job context to Supabase...');
-      await supabase
+      await client
         .from('jobs')
         .insert({ title: prompt, description: prompt });
         
