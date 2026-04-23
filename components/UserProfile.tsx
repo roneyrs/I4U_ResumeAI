@@ -103,11 +103,14 @@ export default function UserProfile({ user: authUser }: UserProfileProps) {
             <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-3xl -mr-16 -mt-16 group-hover:bg-white/20 transition-all"></div>
             <h4 className="text-xl font-bold mb-2">Upgrade Disponível</h4>
             <p className="text-white/80 text-xs leading-relaxed mb-6">
-              Desbloqueie análises preditivas de retenção e integração direta com seu ATS.
+              Solicite ou desbloquei funcionalidades para a Equipe de Desenvolvimento.
             </p>
-            <button className="w-full py-3 bg-white text-primary rounded-xl font-bold text-sm hover:scale-105 transition-all">
-              Ver Planos Pro
-            </button>
+            <a 
+              href="mailto:contato@i4uai.com.br"
+              className="w-full py-3 bg-white text-primary rounded-xl font-bold text-sm hover:scale-105 transition-all inline-block text-center"
+            >
+              Fale Conosco
+            </a>
           </div>
         </div>
 

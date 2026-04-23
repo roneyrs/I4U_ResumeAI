@@ -53,7 +53,9 @@ export default function BatchUpload({ apiKey, prompt, setPrompt, onComplete, onV
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
-    accept: { 'application/pdf': ['.pdf'] },
+    accept: { 
+      'application/pdf': ['.pdf']
+    },
     multiple: true
   });
 
@@ -83,6 +85,9 @@ export default function BatchUpload({ apiKey, prompt, setPrompt, onComplete, onV
           throw new Error("A API aceita apenas arquivos PDF.");
         }
 
+        // Determinar Content-Type (Normalizar para application/pdf pois a API I4U é restrita no cabeçalho)
+        const requestContentType = "application/pdf";
+
         // Update to Stage 1: Text Extraction
         setFiles(prev =>
           prev.map((f, idx) =>
@@ -111,7 +116,7 @@ export default function BatchUpload({ apiKey, prompt, setPrompt, onComplete, onV
               {
                 headers: {
                   "x-api-key": apiKey.trim(),
-                  "Content-Type": "application/pdf",
+                  "Content-Type": requestContentType,
                 },
                 params: {
                   prompt: prompt,
@@ -124,8 +129,9 @@ export default function BatchUpload({ apiKey, prompt, setPrompt, onComplete, onV
             attempts++;
             const isTimeout = apiErr.code === 'ECONNABORTED';
             const is500 = apiErr.response?.status === 500;
+            const is429 = apiErr.response?.status === 429;
             
-            if (attempts < maxAttempts && (isTimeout || is500)) {
+            if (attempts < maxAttempts && (isTimeout || is500 || is429)) {
               console.warn(`Tentativa ${attempts} falhou (${isTimeout ? 'Timeout' : '500'}). Tentando novamente em 3s...`);
               setFiles(prev =>
                 prev.map((f, idx) =>
@@ -399,7 +405,7 @@ export default function BatchUpload({ apiKey, prompt, setPrompt, onComplete, onV
                   <CloudUpload className="w-10 h-10 text-primary" />
                 </div>
                 <h3 className="text-xl font-bold text-slate-900 mb-2">Arraste seus currículos aqui</h3>
-                <p className="text-slate-400 text-sm">PDFs suportados para análise em lote (Máx 50MB por arquivo)</p>
+                <p className="text-slate-400 text-sm">Apenas arquivos PDF suportados (Máx 50MB por arquivo)</p>
               </div>
             </div>
           </div>

@@ -8,6 +8,7 @@ export async function POST(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const prompt = searchParams.get('prompt');
     const apiKey = req.headers.get('x-api-key')?.trim();
+    const contentType = req.headers.get('content-type') || 'application/pdf';
 
     if (!apiKey) {
       return NextResponse.json({ error: 'API Key is required' }, { status: 400 });
@@ -25,7 +26,7 @@ export async function POST(req: NextRequest) {
       headers: {
         "x-api-key": apiKey,
         "Accept": "application/json",
-        "Content-Type": "application/pdf",
+        "Content-Type": contentType,
       },
       // Important: validateStatus allows us to handle 400/401 gracefully
       validateStatus: () => true, 
@@ -45,7 +46,7 @@ export async function POST(req: NextRequest) {
           error: response.data?.error || response.data?.message || `API returned ${response.status}`,
           status: response.status 
         },
-        { status: response.status === 401 || response.status === 403 ? response.status : 500 }
+        { status: response.status }
       );
     }
 

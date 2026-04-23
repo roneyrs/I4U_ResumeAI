@@ -24,7 +24,8 @@ export default function Home() {
   const [isSidebarOpen, setIsSidebarOpen] = React.useState(false);
   const [session, setSession] = React.useState<any>(null);
   const [authLoading, setAuthLoading] = React.useState(true);
-  const [supabaseStatus, setSupabaseStatus] = React.useState<'connected' | 'disconnected' | 'not-configured'>('not-configured');
+  const [dbStatus, setDbStatus] = React.useState<'connected' | 'disconnected' | 'not-configured' | 'local'>('not-configured');
+  const [isTestingConnection, setIsTestingConnection] = React.useState(false);
   const [isVisitorMode, setIsVisitorMode] = React.useState(false);
   const [missingColumns, setMissingColumns] = React.useState<string[]>([]);
   const missingColumnsRef = React.useRef<string[]>([]);
@@ -193,51 +194,60 @@ export default function Home() {
     const testConnection = async () => {
       const client = supabase;
       if (!client) {
-        setSupabaseStatus('not-configured');
+        setDbStatus('local');
         return;
       }
+      
+      setIsTestingConnection(true);
       try {
-        console.log('Testing Supabase connection and schema...');
+        console.log('Testing connection and schema...');
         // Check for specific columns that might be missing
         const requiredColumns = ['attention_areas', 'tags', 'experience_years', 'job_description', 'skills', 'strengths', 'file_name'];
         const missing: string[] = [];
+
+        // Lightweight connection test first
+        const { error: connError } = await client.from('candidates').select('id').limit(1);
+        if (connError) {
+          console.error('Supabase connection test failed:', connError.message);
+          setDbStatus('disconnected');
+          setIsTestingConnection(false);
+          return;
+        }
 
         for (const col of requiredColumns) {
           try {
             const { error } = await client.from('candidates').select(col).limit(0);
             if (error) {
-              console.log(`Check for column "${col}" returned error:`, error.code, error.message);
               if (error.code === 'PGRST204' || error.message?.includes('column') || error.message?.includes('not found')) {
                 missing.push(col);
               }
             }
           } catch (e) {
-            console.error(`Exception checking column "${col}":`, e);
             missing.push(col);
           }
         }
 
         if (missing.length > 0) {
-          console.warn('Missing columns detected in Supabase:', missing);
+          console.warn('Missing columns detected:', missing);
           setMissingColumns(missing);
-          setSupabaseStatus('connected'); // Still connected, but with schema issues
         } else {
-          const { error } = await client.from('candidates').select('id').limit(1);
-          if (error) {
-            console.error('Supabase connection test failed:', error.message);
-            setSupabaseStatus('disconnected');
-          } else {
-            console.log('Supabase connection test successful');
-            setSupabaseStatus('connected');
-            setMissingColumns([]);
-          }
+          setMissingColumns([]);
         }
+        
+        setDbStatus('connected');
       } catch (err) {
-        console.error('Supabase connection test exception:', err);
-        setSupabaseStatus('disconnected');
+        console.error('Connection test exception:', err);
+        setDbStatus('disconnected');
+      } finally {
+        setIsTestingConnection(false);
       }
     };
+    
     testConnection();
+    
+    // Set up periodic check every 30 seconds
+    const interval = setInterval(testConnection, 30000);
+    return () => clearInterval(interval);
   }, [session, isVisitorMode, authLoading]);
 
   // Save data to localStorage whenever it changes
@@ -518,7 +528,8 @@ export default function Home() {
       <main className="flex-1 lg:ml-64 min-h-screen flex flex-col relative w-full overflow-x-hidden">
         <TopBar 
           apiKey={apiKey} 
-          supabaseStatus={supabaseStatus}
+          dbStatus={dbStatus}
+          isTestingConnection={isTestingConnection}
           onMenuClick={() => setIsSidebarOpen(true)} 
           searchTerm={globalSearch}
           setSearchTerm={setGlobalSearch}

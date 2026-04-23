@@ -5,22 +5,24 @@ import { Search, Bell, Settings, CheckCircle2, Menu } from 'lucide-react';
 
 interface TopBarProps {
   apiKey?: string;
-  supabaseStatus?: 'connected' | 'disconnected' | 'not-configured';
+  dbStatus?: 'connected' | 'disconnected' | 'not-configured' | 'local';
   onMenuClick?: () => void;
   searchTerm?: string;
   setSearchTerm?: (term: string) => void;
   setActiveTab?: (tab: string) => void;
   activeTab?: string;
+  isTestingConnection?: boolean;
 }
 
 export default function TopBar({ 
   apiKey, 
-  supabaseStatus, 
+  dbStatus, 
   onMenuClick, 
   searchTerm = '', 
   setSearchTerm, 
   setActiveTab,
-  activeTab = 'dashboard'
+  activeTab = 'dashboard',
+  isTestingConnection = false
 }: TopBarProps) {
   return (
     <header className="fixed top-0 right-0 w-full lg:w-[calc(100%-16rem)] h-16 z-40 bg-white/90 backdrop-blur-xl flex items-center justify-between px-4 md:px-8 border-b border-slate-100 transition-all duration-300">
@@ -66,35 +68,61 @@ export default function TopBar({
       </div>
 
       <div className="flex items-center gap-4">
-        {supabaseStatus === 'connected' ? (
-          <div className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 text-blue-600 rounded-full text-[10px] font-bold uppercase tracking-widest">
-            <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></span>
+        {dbStatus === 'connected' ? (
+          <button 
+            onClick={() => setActiveTab?.('api')}
+            className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 text-blue-600 rounded-full text-[10px] font-bold uppercase tracking-widest hover:bg-blue-100 transition-all cursor-pointer"
+          >
+            <span className={`w-2 h-2 rounded-full bg-blue-500 ${isTestingConnection ? 'animate-spin border-t-transparent border' : 'animate-pulse'}`}></span>
             DB CONECTADO
-          </div>
-        ) : supabaseStatus === 'not-configured' ? (
-          <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-100 text-slate-500 rounded-full text-[10px] font-bold uppercase tracking-widest">
+          </button>
+        ) : dbStatus === 'local' ? (
+          <button 
+            onClick={() => setActiveTab?.('api')}
+            className="flex items-center gap-2 px-3 py-1.5 bg-amber-50 text-amber-600 rounded-full text-[10px] font-bold uppercase tracking-widest hover:bg-amber-100 transition-all cursor-pointer"
+          >
+            <span className="w-2 h-2 rounded-full bg-amber-500"></span>
+            LOCAL STORAGE
+          </button>
+        ) : dbStatus === 'not-configured' ? (
+          <button 
+            onClick={() => setActiveTab?.('api')}
+            className="flex items-center gap-2 px-3 py-1.5 bg-slate-100 text-slate-500 rounded-full text-[10px] font-bold uppercase tracking-widest hover:bg-slate-200 transition-all cursor-pointer"
+          >
             <span className="w-2 h-2 rounded-full bg-slate-400"></span>
             DB NÃO CONFIGURADO
-          </div>
+          </button>
         ) : (
-          <div className="flex items-center gap-2 px-3 py-1.5 bg-red-50 text-red-600 rounded-full text-[10px] font-bold uppercase tracking-widest">
+          <button 
+            onClick={() => setActiveTab?.('api')}
+            className="flex items-center gap-2 px-3 py-1.5 bg-red-50 text-red-600 rounded-full text-[10px] font-bold uppercase tracking-widest hover:bg-red-100 transition-all cursor-pointer"
+          >
             <span className="w-2 h-2 rounded-full bg-red-500"></span>
             DB OFFLINE
-          </div>
+          </button>
         )}
         
         {apiKey ? (
-          <div className="flex items-center gap-2 px-3 py-1.5 bg-green-50 text-green-600 rounded-full text-[10px] font-bold uppercase tracking-widest">
+          <button 
+            onClick={() => setActiveTab?.('api')}
+            className="flex items-center gap-2 px-3 py-1.5 bg-green-50 text-green-600 rounded-full text-[10px] font-bold uppercase tracking-widest hover:bg-green-100 transition-all cursor-pointer"
+          >
             <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
             API CONECTADA
-          </div>
+          </button>
         ) : (
-          <div className="flex items-center gap-2 px-3 py-1.5 bg-red-50 text-red-600 rounded-full text-[10px] font-bold uppercase tracking-widest">
+          <button 
+            onClick={() => setActiveTab?.('api')}
+            className="flex items-center gap-2 px-3 py-1.5 bg-red-50 text-red-600 rounded-full text-[10px] font-bold uppercase tracking-widest hover:bg-red-100 transition-all cursor-pointer"
+          >
             <span className="w-2 h-2 rounded-full bg-red-500"></span>
             API DESCONECTADA
-          </div>
+          </button>
         )}
-        <button className="p-2 text-slate-500 hover:bg-slate-50 rounded-lg transition-all">
+        <button 
+          onClick={() => setActiveTab?.('dashboard')}
+          className="p-2 text-slate-500 hover:bg-slate-50 rounded-lg transition-all"
+        >
           <Bell className="w-5 h-5" />
         </button>
         <button className="p-2 text-slate-500 hover:bg-slate-50 rounded-lg transition-all">

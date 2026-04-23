@@ -19,7 +19,9 @@ import {
   X,
   Plus,
   Copy,
-  Check
+  Check,
+  Mail,
+  Send
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -113,6 +115,11 @@ export default function CandidateList({
   const [selectedIds, setSelectedIds] = React.useState<Set<string>>(new Set());
   const [exportType, setExportType] = React.useState<'analysis' | 'cv'>('analysis');
   const [confirmingId, setConfirmingId] = React.useState<string | null>(null);
+  const [migrationSummary, setMigrationSummary] = React.useState<{
+    count: number;
+    text: string;
+    emailBody: string;
+  } | null>(null);
   const [currentPage, setCurrentPage] = React.useState(1);
   const [newTagInput, setNewTagInput] = React.useState<{ [key: string]: string }>({});
   const itemsPerPage = 10;
@@ -167,6 +174,103 @@ export default function CandidateList({
   React.useEffect(() => {
     setCurrentPage(1);
   }, [searchTerm, jobFilter, scoreLimit, externalSearchTerm]);
+
+  // AI Talent Prediction Logic
+  const predictionData = React.useMemo(() => {
+    if (candidates.length === 0) {
+      return {
+        role: "Nenhum dado",
+        prob: "0%",
+        days: "0 Dias",
+        count: 0,
+        topScore: 0
+      };
+    }
+
+    const highPerformers = candidates.filter(c => c.score >= 8.5);
+    const roles: { [key: string]: number } = {};
+    
+    candidates.forEach(c => {
+      if (c.role && c.role !== 'Não identificado') {
+        roles[c.role] = (roles[c.role] || 0) + 1;
+      }
+    });
+
+    const topRole = Object.entries(roles).sort((a, b) => b[1] - a[1])[0]?.[0] || "Especialistas";
+    const avgScore = candidates.reduce((acc, c) => acc + c.score, 0) / candidates.length;
+    
+    // Status weight: Highly approved pool = higher confidence
+    const approvedCount = candidates.filter(c => c.status === 'Aprovado').length;
+    const rejectedCount = candidates.filter(c => c.status === 'Reprovado').length;
+    const statusWeight = (approvedCount - rejectedCount) * 2;
+
+    // Probabilidade baseada no score médio, densidade e status histórico
+    const baseProb = avgScore * 10;
+    const densityBonus = (highPerformers.length / candidates.length) * 15;
+    const prob = Math.min(99.4, Math.max(5, baseProb + densityBonus + statusWeight)).toFixed(1);
+    
+    // Heuristic: Hire time decreases with more high performers
+    const baseDays = 20;
+    const reduction = Math.min(12, highPerformers.length * 0.8);
+    const finalDays = Math.max(3, Math.ceil(baseDays - reduction));
+
+    const topScore = Math.max(...candidates.map(c => c.score));
+
+    return {
+      role: topRole,
+      prob: `${prob}%`,
+      days: `${finalDays} Dias`,
+      count: highPerformers.length,
+      topScore
+    };
+  }, [candidates]);
+
+  const handleMigration = () => {
+    const threshold = Math.max(8.5, predictionData.topScore - 0.5);
+    const toMigrate = candidates.filter(c => c.score >= threshold && c.status !== 'Revisão Executiva');
+
+    if (toMigrate.length === 0) {
+      alert("Nenhum novo candidato atende aos critérios de migração automática no momento.");
+      return;
+    }
+
+    // Execute status updates
+    toMigrate.forEach(c => {
+      onUpdateStatus?.(c.id, 'Revisão Executiva');
+    });
+
+    // Generate Summary
+    let summaryText = `RELATÓRIO DE MIGRAÇÃO EXECUTIVA - ${new Date().toLocaleDateString('pt-BR')}\n\n`;
+    summaryText += `Foram migrados ${toMigrate.length} candidatos com Score Neural >= ${threshold.toFixed(1)}.\n\n`;
+    
+    let emailBody = `Olá,\n\nSegue a lista de candidatos qualificados para Revisão Executiva:\n\n`;
+
+    toMigrate.forEach((c, index) => {
+      const candidateInfo = 
+        `${index + 1}. ${c.name.toUpperCase()}\n` +
+        `   Score: ${c.score.toFixed(1)}\n` +
+        `   Email: ${c.email || 'Não informado'}\n` +
+        `   Telefone: ${c.phone || 'Não informado'}\n\n`;
+      
+      summaryText += candidateInfo;
+      emailBody += candidateInfo;
+    });
+
+    emailBody += `\nAtt,\nEquipe de Recrutamento IA`;
+
+    setMigrationSummary({
+      count: toMigrate.length,
+      text: summaryText,
+      emailBody: emailBody
+    });
+  };
+
+  const shareByEmail = () => {
+    if (!migrationSummary) return;
+    const subject = encodeURIComponent(`Relatório de Talentos IA - ${migrationSummary.count} Candidatos Qualificados`);
+    const body = encodeURIComponent(migrationSummary.emailBody);
+    window.location.href = `mailto:?subject=${subject}&body=${body}`;
+  };
 
   const toggleSelect = (id: string) => {
     const newSelected = new Set(selectedIds);
@@ -581,16 +685,19 @@ Este arquivo contém os dados estruturados extraídos do documento original.]
           <div className="flex items-start gap-8">
             <div className="flex-1 space-y-6">
               <p className="text-slate-500 text-sm leading-relaxed">
-                Detectada alta densidade de <span className="font-bold text-primary underline decoration-2 underline-offset-4 cursor-pointer">Engenheiros Rust</span>. Recomendamos acelerar a triagem para os top 5 candidatos para evitar perda de talentos.
+                Detectada alta densidade de <span className="font-bold text-primary underline decoration-2 underline-offset-4 cursor-pointer">{predictionData.role}</span>. 
+                {predictionData.count > 0 
+                  ? ` Recomendamos acelerar a triagem para os top ${Math.min(predictionData.count, 5)} candidatos para evitar perda de talentos.`
+                  : " Continue as triagens para identificar os melhores perfis para esta vaga."}
               </p>
               <div className="flex items-center gap-6">
                 <div className="bg-green-50 p-4 rounded-2xl border border-green-100 flex-1">
                   <p className="text-[10px] font-bold text-green-600 uppercase tracking-widest mb-1">Prob. de Sucesso</p>
-                  <p className="text-2xl font-bold text-green-700">88.4%</p>
+                  <p className="text-2xl font-bold text-green-700">{predictionData.prob}</p>
                 </div>
                 <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 flex-1">
                   <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Tempo para Contratação</p>
-                  <p className="text-2xl font-bold text-700">12 Dias</p>
+                  <p className="text-2xl font-bold text-700">{predictionData.days}</p>
                 </div>
               </div>
             </div>
@@ -607,17 +714,84 @@ Este arquivo contém os dados estruturados extraídos do documento original.]
           <div className="absolute top-0 right-0 w-48 h-48 bg-primary/10 rounded-full blur-3xl -mr-24 -mt-24 group-hover:bg-primary/20 transition-all duration-500"></div>
           <div>
             <span className="px-3 py-1 bg-primary/10 text-primary rounded-lg text-[10px] font-extrabold uppercase tracking-[0.2em] border border-primary/20">Ação Rápida</span>
-            <h3 className="text-2xl font-bold text-white mt-4 mb-3 tracking-tight">Automatizar Migração de Pasta</h3>
+            <h3 className="text-2xl font-bold text-white mt-4 mb-3 tracking-tight">Automatizar Migração</h3>
             <p className="text-slate-400 text-sm leading-relaxed font-medium">
-              Mover candidatos com Score Neural &gt; 9.4 para &apos;Revisão Executiva&apos; imediatamente.
+              Mover candidatos com Score Neural &gt; {Math.max(8.5, predictionData.topScore - 0.5).toFixed(1)} para &apos;Revisão Executiva&apos; imediatamente.
             </p>
           </div>
-          <button className="w-full py-4 bg-primary text-white rounded-xl font-bold shadow-lg shadow-primary/30 hover:brightness-110 hover:shadow-primary/40 active:scale-[0.98] transition-all mt-10">
+          <button 
+            onClick={handleMigration}
+            className="w-full py-4 bg-primary text-white rounded-xl font-bold shadow-lg shadow-primary/30 hover:brightness-110 hover:shadow-primary/40 active:scale-[0.98] transition-all mt-10"
+          >
             Executar Migração
           </button>
         </div>
       </div>
 
+      {/* Migration Summary Modal */}
+      <AnimatePresence>
+        {migrationSummary && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setMigrationSummary(null)}
+              className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm"
+            />
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.95, opacity: 0, y: 20 }}
+              className="relative w-full max-w-2xl bg-white rounded-[32px] shadow-2xl overflow-hidden flex flex-col max-h-[80vh]"
+            >
+              <div className="p-8 border-b border-slate-100 flex items-center justify-between bg-slate-50">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 bg-primary/10 rounded-2xl flex items-center justify-center">
+                    <Send className="w-6 h-6 text-primary" />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-bold text-slate-900">Relatório Gerado</h3>
+                    <p className="text-slate-500 text-sm">{migrationSummary.count} candidatos migrados com sucesso</p>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => setMigrationSummary(null)}
+                  className="p-2 hover:bg-slate-200 rounded-xl transition-all"
+                >
+                  <X className="w-5 h-5 text-slate-500" />
+                </button>
+              </div>
+
+              <div className="p-8 overflow-y-auto bg-slate-50/50">
+                <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-inner font-mono text-xs whitespace-pre-wrap text-slate-700 leading-relaxed max-h-[400px] overflow-y-auto">
+                  {migrationSummary.text}
+                </div>
+              </div>
+
+              <div className="p-8 border-t border-slate-100 bg-white grid grid-cols-2 gap-4">
+                <button 
+                  onClick={() => {
+                    navigator.clipboard.writeText(migrationSummary.text);
+                    alert("Copiado para a área de transferência!");
+                  }}
+                  className="flex items-center justify-center gap-2 py-3 bg-slate-100 text-slate-700 rounded-xl font-bold hover:bg-slate-200 transition-all"
+                >
+                  <Copy className="w-4 h-4" />
+                  Copiar Relatório
+                </button>
+                <button 
+                  onClick={shareByEmail}
+                  className="flex items-center justify-center gap-2 py-3 bg-primary text-white rounded-xl font-bold hover:brightness-110 shadow-lg shadow-primary/20 transition-all"
+                >
+                  <Mail className="w-4 h-4" />
+                  Enviar por E-mail
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
