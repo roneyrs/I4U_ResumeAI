@@ -83,8 +83,8 @@ export default function Home() {
           setAuthLoading(false);
         }
 
-        if (typeof client.auth.onAuthStateChanged === 'function') {
-          const { data } = client.auth.onAuthStateChanged((_event, session) => {
+        if (typeof client.auth.onAuthStateChange === 'function') {
+          const { data } = client.auth.onAuthStateChange((_event, session) => {
             if (isMounted) {
               setSession(session);
             }
