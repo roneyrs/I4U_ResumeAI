@@ -30,12 +30,16 @@ export default function UserProfile({ user: authUser }: UserProfileProps) {
         // Clear local session markers
         localStorage.removeItem('i4u_session_active');
         localStorage.removeItem('i4u_results');
+        localStorage.removeItem('i4u_api_key');
+        localStorage.removeItem('i4u_last_prompt');
         // Fallback for some environments where the listener might be slow
         window.location.href = '/';
       } catch (err) {
         console.error('Error signing out:', err);
         // Even if supabase fails, we try to clear local state
         localStorage.removeItem('i4u_session_active');
+        localStorage.removeItem('i4u_api_key');
+        localStorage.removeItem('i4u_last_prompt');
         window.location.reload();
       }
     }

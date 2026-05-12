@@ -23,6 +23,8 @@ export default function Sidebar({ activeTab, setActiveTab, isOpen, onClose, user
       await supabase.auth.signOut();
       localStorage.removeItem('i4u_session_active');
       localStorage.removeItem('i4u_results');
+      localStorage.removeItem('i4u_api_key');
+      localStorage.removeItem('i4u_last_prompt');
       window.location.href = '/';
     }
   };
