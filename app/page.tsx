@@ -26,6 +26,7 @@ export default function Home() {
   const [authLoading, setAuthLoading] = React.useState(true);
   const [dbStatus, setDbStatus] = React.useState<'connected' | 'disconnected' | 'not-configured' | 'local'>('not-configured');
   const [isTestingConnection, setIsTestingConnection] = React.useState(false);
+  const [isApiValidated, setIsApiValidated] = React.useState(false);
   const [isVisitorMode, setIsVisitorMode] = React.useState(false);
   const [missingColumns, setMissingColumns] = React.useState<string[]>([]);
   const missingColumnsRef = React.useRef<string[]>([]);
@@ -528,6 +529,7 @@ export default function Home() {
       <main className="flex-1 lg:ml-64 min-h-screen flex flex-col relative w-full overflow-x-hidden">
         <TopBar 
           apiKey={apiKey} 
+          isApiValidated={isApiValidated}
           dbStatus={dbStatus}
           isTestingConnection={isTestingConnection}
           onMenuClick={() => setIsSidebarOpen(true)} 
@@ -609,7 +611,14 @@ export default function Home() {
                       <h2 className="text-3xl font-headline font-bold text-slate-900">Configurações</h2>
                       <p className="text-slate-500">Gerencie suas chaves de API e conexões de serviço.</p>
                     </section>
-                    <ApiConfig apiKey={apiKey} onApiKeyChange={setApiKey} />
+                    <ApiConfig 
+                      apiKey={apiKey} 
+                      onApiKeyChange={(key) => {
+                        setApiKey(key);
+                        setIsApiValidated(false);
+                      }} 
+                      onValidationSuccess={() => setIsApiValidated(true)}
+                    />
                   </div>
                 )}
               </motion.div>

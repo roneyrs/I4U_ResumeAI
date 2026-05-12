@@ -5,6 +5,7 @@ import { Search, Bell, Settings, CheckCircle2, Menu } from 'lucide-react';
 
 interface TopBarProps {
   apiKey?: string;
+  isApiValidated?: boolean;
   dbStatus?: 'connected' | 'disconnected' | 'not-configured' | 'local';
   onMenuClick?: () => void;
   searchTerm?: string;
@@ -16,6 +17,7 @@ interface TopBarProps {
 
 export default function TopBar({ 
   apiKey, 
+  isApiValidated,
   dbStatus, 
   onMenuClick, 
   searchTerm = '', 
@@ -102,13 +104,21 @@ export default function TopBar({
           </button>
         )}
         
-        {apiKey ? (
+        {apiKey && isApiValidated ? (
           <button 
             onClick={() => setActiveTab?.('api')}
             className="flex items-center gap-2 px-3 py-1.5 bg-green-50 text-green-600 rounded-full text-[10px] font-bold uppercase tracking-widest hover:bg-green-100 transition-all cursor-pointer"
           >
             <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
             API CONECTADA
+          </button>
+        ) : apiKey && !isApiValidated ? (
+          <button 
+            onClick={() => setActiveTab?.('api')}
+            className="flex items-center gap-2 px-3 py-1.5 bg-amber-50 text-amber-600 rounded-full text-[10px] font-bold uppercase tracking-widest hover:bg-amber-100 transition-all cursor-pointer"
+          >
+            <span className="w-2 h-2 rounded-full bg-amber-500"></span>
+            API PENDENTE
           </button>
         ) : (
           <button 

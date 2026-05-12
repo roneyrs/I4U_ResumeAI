@@ -35,8 +35,10 @@ export async function POST(req: NextRequest) {
 
     console.log(`[Proxy] I4U API Response Status: ${response.status}`);
 
-    // If it's a test and we get 400, the key is valid but the body (0 bytes) was rejected
-    if (isTest && response.status === 400) {
+    // If it's a test and we get 400, the key is valid but the body (0 bytes) was rejected.
+    // Also handling specific 500 error from I4U API that occurs with empty bodies but valid keys.
+    const errorMsg = response.data?.error || response.data?.message || "";
+    if (isTest && (response.status === 400 || (response.status === 500 && errorMsg.includes('NoneType')))) {
       return NextResponse.json({ message: 'Key validated' }, { status: 200 });
     }
 

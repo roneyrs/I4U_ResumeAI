@@ -8,11 +8,12 @@ import axios from 'axios';
 interface ApiConfigProps {
   apiKey: string;
   onApiKeyChange: (key: string) => void;
+  onValidationSuccess?: () => void;
 }
 
 type ValidationStatus = 'idle' | 'loading' | 'success' | 'error';
 
-export default function ApiConfig({ apiKey, onApiKeyChange }: ApiConfigProps) {
+export default function ApiConfig({ apiKey, onApiKeyChange, onValidationSuccess }: ApiConfigProps) {
   const [showKey, setShowKey] = React.useState(false);
   const [status, setStatus] = React.useState<ValidationStatus>('idle');
   const [errorMessage, setErrorMessage] = React.useState<string | null>(null);
@@ -45,6 +46,7 @@ export default function ApiConfig({ apiKey, onApiKeyChange }: ApiConfigProps) {
 
       setStatus('success');
       setLatency(Date.now() - startTime);
+      if (onValidationSuccess) onValidationSuccess();
     } catch (err: any) {
       const endTime = Date.now();
       const responseStatus = err.response?.status;
