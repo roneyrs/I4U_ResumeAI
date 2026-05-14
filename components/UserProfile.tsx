@@ -17,8 +17,8 @@ export default function UserProfile({ user: authUser }: UserProfileProps) {
   const user = {
     name: authUser?.email?.split('@')[0] || 'Novo Usuário',
     email: authUser?.email || 'usuario@i4uai.com',
-    role: 'Administrador Senior',
-    plan: 'Enterprise',
+    role: 'Administrador Demo',
+    plan: 'Demo',
     joined: 'Janeiro 2024',
     avatar: `https://picsum.photos/seed/${authUser?.id || 'admin'}/200/200`
   };

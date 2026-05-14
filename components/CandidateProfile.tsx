@@ -49,13 +49,6 @@ export default function CandidateProfile({ candidate, onClose, onDelete, onUpdat
     onUpdateTags?.(candidate.id, currentTags.filter(t => t !== tagToRemove));
   };
 
-  const evaluationScores = candidate.evaluationScores || [
-    { label: 'Proficiência Técnica', score: candidate.score || 0 },
-    { label: 'Design de Sistemas', score: (candidate.score * 0.95) || 0 },
-    { label: 'Habilidades de Liderança', score: (candidate.score * 0.9) || 0 },
-    { label: 'Fit Cultural', score: (candidate.score * 0.85) || 0 },
-  ];
-
   const skills = candidate.skills && candidate.skills.length > 0 ? candidate.skills : [];
 
   return (
@@ -114,7 +107,6 @@ export default function CandidateProfile({ candidate, onClose, onDelete, onUpdat
               <div className="flex-1 text-center sm:text-left">
                 <div className="flex flex-col sm:flex-row items-center gap-2 sm:gap-3 mb-1">
                   <h2 className="text-2xl sm:text-4xl font-bold text-slate-900 tracking-tight">{candidate.name}</h2>
-                  <span className="px-2 py-0.5 bg-slate-900 text-white text-[8px] sm:text-[10px] font-bold uppercase tracking-widest rounded-lg">Especialista Verificada</span>
                 </div>
                 <p className="text-xs text-slate-400 italic mb-3 sm:mb-4">{candidate.fileName || 'Arquivo não identificado'}</p>
                 <div className="flex flex-wrap justify-center sm:justify-start items-center gap-3 sm:gap-6 text-primary font-bold mb-4 sm:mb-6 text-sm sm:text-base">
@@ -246,8 +238,8 @@ export default function CandidateProfile({ candidate, onClose, onDelete, onUpdat
                   <p className="text-[8px] sm:text-[10px] font-bold text-primary uppercase tracking-widest">Perfil Gerado por IA</p>
                 </div>
               </div>
-              <p className="text-slate-600 text-sm sm:text-lg leading-relaxed italic font-medium">
-                &quot;{candidate.analysis || 'Candidata altamente qualificada com foco em sistemas distribuídos de alta escalabilidade. Demonstra uma transição sólida de cargos técnicos para liderança estratégica, mantendo um perfil hands-on. Sua experiência com arquiteturas orientadas a eventos e modernização de legados em larga escala a torna uma candidata excepcional.'}&quot;
+              <p className="text-slate-600 text-sm sm:text-lg leading-relaxed italic font-medium text-center">
+                &quot;{candidate.analysis || 'Resumo da análise não disponível para este candidato.'}&quot;
               </p>
             </div>
 
@@ -311,39 +303,6 @@ export default function CandidateProfile({ candidate, onClose, onDelete, onUpdat
               </div>
             </div>
 
-            {/* Evaluation Core */}
-            <div className="bg-white p-6 sm:p-8 rounded-[24px] sm:rounded-[40px] border border-slate-100 shadow-sm">
-              <h3 className="text-lg sm:text-xl font-bold text-slate-900 mb-6 sm:mb-8">Núcleo de Avaliação</h3>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 sm:gap-8">
-                {evaluationScores.map(item => (
-                  <div key={item.label}>
-                    <div className="flex justify-between items-end mb-2 sm:mb-3">
-                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest max-w-[140px]">{item.label}</span>
-                      <span className="text-base sm:text-lg font-bold text-primary">{(item.score || 0).toFixed(1)}/10</span>
-                    </div>
-                    <div className="h-1.5 sm:h-2 w-full bg-slate-100 rounded-full overflow-hidden">
-                      <motion.div 
-                        initial={{ width: 0 }}
-                        animate={{ width: `${item.score * 10}%` }}
-                        className="h-full bg-primary rounded-full"
-                      />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Layer Observation */}
-            <div className="bg-white p-6 sm:p-8 rounded-[24px] sm:rounded-[40px] border border-primary/20 shadow-lg relative overflow-hidden">
-              <div className="absolute top-0 left-0 w-full h-1 bg-primary"></div>
-              <div className="flex items-center gap-3 mb-4 sm:mb-6 text-primary">
-                <Zap className="w-4 h-4 sm:w-5 sm:h-5 fill-current" />
-                <h4 className="text-[8px] sm:text-[10px] font-bold uppercase tracking-[0.2em]">Observação da Camada de Inteligência</h4>
-              </div>
-              <p className="text-slate-600 text-[10px] sm:text-sm leading-relaxed font-medium italic">
-                &quot;O histórico no GitHub da candidata mostra contribuições significativas em projetos Open Source de nuvem, o que se alinha perfeitamente ao nosso roadmap de inovação para o Q4. O I4U Resume detecta uma alta probabilidade de sucesso em liderança técnica.&quot;
-              </p>
-            </div>
           </div>
         </div>
       </motion.div>
